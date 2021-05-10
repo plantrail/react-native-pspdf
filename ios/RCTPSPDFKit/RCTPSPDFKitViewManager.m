@@ -152,7 +152,8 @@ RCT_CUSTOM_VIEW_PROPERTY(showDownloadableFonts, BOOL, RCTPSPDFKitView) {
 }
 
 //------- PlanTrail ---------------------------------------------------------
-RCT_EXPORT_METHOD(extractSnippet:(NSString*)fileGuid 
+RCT_EXPORT_METHOD(
+    extractSnippet:(NSString*)fileGuid 
     x:(CGFloat)x 
     y:(CGFloat)y 
     width:(CGFloat)width 
@@ -174,6 +175,25 @@ RCT_EXPORT_METHOD(extractSnippet:(NSString*)fileGuid
     }
   });
 }
+
+RCT_EXPORT_METHOD(
+    extractBlueprint:(NSString*)fileGuid
+    pageIndex:(NSInteger)pageIndex
+    reactTag:(nonnull NSNumber *)reactTag resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) 
+  {
+  dispatch_async(dispatch_get_main_queue(), ^{
+    RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
+    NSError *error;
+
+    BOOL success = [component extractBlueprint:fileGuid withClipRect:CGRectZero atPageIndex:pageIndex error:&error];
+    if (success) {
+      resolve(@(success));
+    } else {
+      reject(@"error", @"Failed to extract snippet", error);
+    }
+  });
+}
+
 
 // RCT_EXPORT_METHOD(getPageWidth::(nonnull NSNumber *)pageIndex resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
 //   dispatch_async(dispatch_get_main_queue(), ^{

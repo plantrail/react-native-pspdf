@@ -123,6 +123,24 @@ class PSPDFKitView extends React.Component {
     }
   };
 
+  /* --------------
+   * PlanTrail
+   * Create a jpg in each size (original, medium, thumbnail) from a page in a pdf
+   */
+  extractBlueprint = function({fileGuid, x, y, width, height, pageIndex}) {
+    if (Platform.OS === 'android') {
+      throw new Error(
+        'Android not supported for this PlanTrail specific function, (extractSnippet'
+      );
+    } else if (Platform.OS === 'ios') {
+      return NativeModules.PSPDFKitViewManager.extractBlueprint(
+        fileGuid,
+        pageIndex,
+        findNodeHandle(this.refs.pdfView)
+      );
+    }
+  };
+
   /**
    * Enters the annotation creation mode, showing the annotation creation toolbar.
    */

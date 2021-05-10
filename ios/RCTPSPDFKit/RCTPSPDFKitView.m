@@ -118,15 +118,73 @@
   return nil;
 }
 
-//--------------- PlanTrail -----------------------------------------
-- (void)saveImageAsPng:(UIImage*)image withFilename:(NSString*)filename {
+
+// //--------------- PlanTrail -----------------------------------------
+- (UIImage *)imageWithImage:(UIImage *)image scaledToSize:(CGFloat)newSize {
+    CGSize newCGSize;
+    if (image.size.width > image.size.height) {
+      newCGSize = CGSizeMake(newSize, newSize * image.size.height/image.size.width);
+    } else {
+      newCGSize = CGSizeMake(newSize * image.size.width/image.size.height, newSize);
+    }
+
+    UIGraphicsBeginImageContextWithOptions(newCGSize, NO, 1.0);
+    [image drawInRect:CGRectMake(0, 0, newCGSize.width, newCGSize.height)];
+    UIImage *newImage = UIGraphicsGetImageFromCurrentImageContext();    
+    UIGraphicsEndImageContext();
+    return newImage;
+}
+
+- (void)saveImageAsPng:(UIImage*)image withFileName:(NSString*)fileName {
   NSString *documentsDirectory = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
-  NSString *filePath = [documentsDirectory stringByAppendingPathComponent:filename];
+  NSString *filePath = [documentsDirectory stringByAppendingPathComponent:fileName];
 
   // Convert UIImage object into NSData (a wrapper for a stream of bytes) formatted according to PNG spec
   NSData *imageData = UIImagePNGRepresentation(image); 
   [imageData writeToFile:filePath atomically:YES];
 };
+
+- (void)saveImageAsJpg:(UIImage*)image withFileName:(NSString*)fileName {
+  NSString *documentsDirectory = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
+  NSString *filePath = [documentsDirectory stringByAppendingPathComponent:fileName];
+
+  NSData *imageData = UIImageJPEGRepresentation(image, 0.85f); // quality level 85%
+  [imageData writeToFile:filePath atomically:YES];
+};
+
+- (void)saveBlueprintImagesAsJpg:(UIImage*)imageOriginal withFileGuid:(NSString*)fileGuid {
+  NSString *fileNameThumbnail = [fileGuid stringByAppendingString:@"_thumbnail.jpg"];
+  NSString *fileNameMedium = [fileGuid stringByAppendingString:@"_medium.jpg"];
+  NSString *fileNameOriginal = [fileGuid stringByAppendingString:@"_original.jpg"];
+
+  UIImage *imageMedium = [self imageWithImage:imageOriginal scaledToSize: 4000];
+  UIImage *imageThumbnail = [self imageWithImage:imageOriginal scaledToSize: 120];
+
+  [self saveImageAsJpg:imageOriginal withFileName:fileNameOriginal];
+  [self saveImageAsJpg:imageMedium withFileName:fileNameMedium];
+  [self saveImageAsJpg:imageThumbnail withFileName:fileNameThumbnail];
+};
+
+- (BOOL)extractBlueprint:(NSString*)fileGuid withClipRect:(CGRect)clipRect atPageIndex:(NSInteger)pageIndex error:(NSError *_Nullable *)error {
+  BOOL success = YES;
+
+  PSPDFDocument *document = self.pdfController.document;
+  VALIDATE_DOCUMENT(document, NO)
+//  PSPDFDocumentProvider *documentProvider = document.documentProviders.firstObject;
+
+  PSPDFPageInfo *pageInfo = [document pageInfoForPageAtIndex:pageIndex];
+  CGSize extractionSize = CGSizeMake(pageInfo.size.width * 2, pageInfo.size.height * 2);
+
+  UIImage *image = [document imageForPageAtIndex:pageIndex size:extractionSize clippedToRect:clipRect annotations:nil options:nil error:&error];
+  [self saveBlueprintImagesAsJpg:image withFileGuid:fileGuid];
+
+  if (!success) {
+    NSLog(@"Failed to extract blueprint.");
+  }
+  
+  return success;
+}
+
 
 - (BOOL)extractSnippet:(NSString*)fileGuid withClipRect:(CGRect)clipRect atPageIndex:(NSInteger)pageIndex error:(NSError *_Nullable *)error {
   BOOL success = YES;
@@ -140,16 +198,11 @@
   NSArray <PSPDFAnnotation *> *annotations = [document annotationsForPageAtIndex:pageIndex type:type];
 
   PSPDFPageInfo *pageInfo = [document pageInfoForPageAtIndex:pageIndex];
+  
+  // UIImage *image = [document imageForPageAtIndex:pageIndex size:pageInfo.size clippedToRect:clipRect annotations:annotations options:nil error:&error];
   UIImage *image = [document imageForPageAtIndex:pageIndex size:pageInfo.size clippedToRect:clipRect annotations:annotations options:nil error:&error];
-
-  // NSString *documentsDirectory = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
-  // NSString *filePath = [documentsDirectory stringByAppendingPathComponent:@"test2.png"];
-
-  // // Convert UIImage object into NSData (a wrapper for a stream of bytes) formatted according to PNG spec
-  // NSData *imageData = UIImagePNGRepresentation(image); 
-  // [imageData writeToFile:filePath atomically:YES];
   NSString *fileName = [fileGuid stringByAppendingString:@".png"];
-  [self saveImageAsPng:image withFilename:fileName];
+  [self saveImageAsPng:image withFileName:fileName];
 
   if (!success) {
     NSLog(@"Failed to extract snippet.");
@@ -174,7 +227,6 @@
 //   return pageWidth;
 // }
 //--------------------------------------------------------------------------
-
 
 
 - (BOOL)enterAnnotationCreationMode {
@@ -279,7 +331,7 @@
       success = [document addAnnotations:@[annotation] options:nil];
     }
   }
-  
+
   if (!success) {
     NSLog(@"Failed to add annotation.");
   }
