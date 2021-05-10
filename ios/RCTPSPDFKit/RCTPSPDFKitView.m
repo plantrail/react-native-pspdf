@@ -118,6 +118,65 @@
   return nil;
 }
 
+//--------------- PlanTrail -----------------------------------------
+- (void)saveImageAsPng:(UIImage*)image withFilename:(NSString*)filename {
+  NSString *documentsDirectory = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
+  NSString *filePath = [documentsDirectory stringByAppendingPathComponent:filename];
+
+  // Convert UIImage object into NSData (a wrapper for a stream of bytes) formatted according to PNG spec
+  NSData *imageData = UIImagePNGRepresentation(image); 
+  [imageData writeToFile:filePath atomically:YES];
+};
+
+- (BOOL)extractSnippet:(NSString*)fileGuid withClipRect:(CGRect)clipRect atPageIndex:(NSInteger)pageIndex error:(NSError *_Nullable *)error {
+  BOOL success = YES;
+
+  PSPDFDocument *document = self.pdfController.document;
+  VALIDATE_DOCUMENT(document, NO)
+//  PSPDFDocumentProvider *documentProvider = document.documentProviders.firstObject;
+
+  PSPDFAnnotationType *type = PSPDFAnnotationTypeHighlight;
+  //Get all annotations of type Highlight, for specifying which annotations should be rendered to the image
+  NSArray <PSPDFAnnotation *> *annotations = [document annotationsForPageAtIndex:pageIndex type:type];
+
+  PSPDFPageInfo *pageInfo = [document pageInfoForPageAtIndex:pageIndex];
+  UIImage *image = [document imageForPageAtIndex:pageIndex size:pageInfo.size clippedToRect:clipRect annotations:annotations options:nil error:&error];
+
+  // NSString *documentsDirectory = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
+  // NSString *filePath = [documentsDirectory stringByAppendingPathComponent:@"test2.png"];
+
+  // // Convert UIImage object into NSData (a wrapper for a stream of bytes) formatted according to PNG spec
+  // NSData *imageData = UIImagePNGRepresentation(image); 
+  // [imageData writeToFile:filePath atomically:YES];
+  NSString *fileName = [fileGuid stringByAppendingString:@".png"];
+  [self saveImageAsPng:image withFilename:fileName];
+
+  if (!success) {
+    NSLog(@"Failed to extract snippet.");
+  }
+  
+  return success;
+}
+
+// - (NSDictionary<NSString *, NSArray<NSDictionary *> *> *)getPageInfo:(PSPDFPageIndex)pageIndex error:(NSError *_Nullable *)error {
+//   PSPDFDocument *document = self.pdfController.document;
+//   VALIDATE_DOCUMENT(document, nil);
+  
+//   NSArray <PSPDFPageInfo *> *pageInfo = [document pageInfoForPageAtIndex:pageIndex];
+//   NSArray <NSDictionary *> *pageInfoJSON = [RCTConvert instantJSONFromPageInfo:pageInfo error:error];
+//   return @{@"pageInfo" : pageInfoJSON};
+// }
+
+
+// - (CGFloat) getPageWidthForPageAtIndex {
+//   PSPDFPageInfo *pageInfo = [document pageInfoForPageAtIndex:pageIndex];
+//   CGFloat pageWidth = pageInfo.size.width;
+//   return pageWidth;
+// }
+//--------------------------------------------------------------------------
+
+
+
 - (BOOL)enterAnnotationCreationMode {
   [self.pdfController setViewMode:PSPDFViewModeDocument animated:YES];
   [self.pdfController.annotationToolbarController updateHostView:self container:nil viewController:self.pdfController];

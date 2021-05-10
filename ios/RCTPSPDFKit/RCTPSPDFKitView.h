@@ -41,6 +41,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// Document
 - (BOOL)saveCurrentDocumentWithError:(NSError *_Nullable *)error;
 
+///PlanTrail -------------------------------------
+- (void)saveImageAsPng:(UIImage*)image withFilename:(NSString*)filename;
+- (BOOL)extractSnippet:(NSString*)fileGuid withClipRect:(CGRect)clipRect atPageIndex:(NSInteger)pageIndex error:(NSError *_Nullable *)error;
+// - (CGFloat)getPageWidthForPageAtIndex:(PSPDFPageIndex)pageIndex error:(NSError *_Nullable *)error;
+///----------------------------------------------
+
 /// Anotations
 - (NSDictionary<NSString *, NSArray<NSDictionary *> *> *)getAnnotations:(PSPDFPageIndex)pageIndex type:(PSPDFAnnotationType)type error:(NSError *_Nullable *)error;
 - (BOOL)addAnnotation:(id)jsonAnnotation error:(NSError *_Nullable *)error;

@@ -151,6 +151,47 @@ RCT_CUSTOM_VIEW_PROPERTY(showDownloadableFonts, BOOL, RCTPSPDFKitView) {
   }
 }
 
+//------- PlanTrail ---------------------------------------------------------
+RCT_EXPORT_METHOD(extractSnippet:(NSString*)fileGuid 
+    x:(CGFloat)x 
+    y:(CGFloat)y 
+    width:(CGFloat)width 
+    height:(CGFloat)height
+    pageIndex:(NSInteger)pageIndex
+    reactTag:(nonnull NSNumber *)reactTag resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) 
+  {
+  dispatch_async(dispatch_get_main_queue(), ^{
+    RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
+    NSError *error;
+
+    CGRect clipRect = CGRectMake(x, y, width, height);
+
+    BOOL success = [component extractSnippet:fileGuid withClipRect:clipRect atPageIndex:pageIndex error:&error];
+    if (success) {
+      resolve(@(success));
+    } else {
+      reject(@"error", @"Failed to extract snippet", error);
+    }
+  });
+}
+
+// RCT_EXPORT_METHOD(getPageWidth::(nonnull NSNumber *)pageIndex resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+//   dispatch_async(dispatch_get_main_queue(), ^{
+//     RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
+//     NSError *error;
+//     CGFloat *pageWidth = [component getPageWidthForPageAtIndex:(PSPDFPageIndex)pageIndex.integerValue error:&error];
+
+//     if (pageWidth) {
+//       resolve((double) pageWidth);
+//     } else {
+//       reject(@"error", @"Failed to get pageWidth.", error);
+//     }
+//   });
+// }
+
+//--------------------------------------------------------------------------------
+
+
 RCT_EXPORT_METHOD(enterAnnotationCreationMode:(nonnull NSNumber *)reactTag resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   dispatch_async(dispatch_get_main_queue(), ^{
     RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];

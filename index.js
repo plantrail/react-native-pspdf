@@ -6,24 +6,24 @@
 //  This notice may not be removed from this file.
 //
 
-import PropTypes from "prop-types";
-import React from "react";
+import PropTypes from 'prop-types';
+import React from 'react';
 import {
   requireNativeComponent,
   Platform,
   findNodeHandle,
   NativeModules,
   UIManager,
-} from "react-native";
+} from 'react-native';
 
 class PSPDFKitView extends React.Component {
   _nextRequestId = 1;
   _requestMap = new Map();
 
   render() {
-    if (Platform.OS === "ios" || Platform.OS === "android") {
+    if (Platform.OS === 'ios' || Platform.OS === 'android') {
       const onCloseButtonPressedHandler = this.props.onCloseButtonPressed
-        ? (event) => {
+        ? event => {
             this.props.onCloseButtonPressed(event.nativeEvent);
           }
         : null;
@@ -48,50 +48,50 @@ class PSPDFKitView extends React.Component {
     }
   }
 
-  _onStateChanged = (event) => {
+  _onStateChanged = event => {
     if (this.props.onStateChanged) {
       this.props.onStateChanged(event.nativeEvent);
     }
   };
 
-  _onDocumentSaved = (event) => {
+  _onDocumentSaved = event => {
     if (this.props.onDocumentSaved) {
       this.props.onDocumentSaved(event.nativeEvent);
     }
   };
 
-  _onDocumentSaveFailed = (event) => {
+  _onDocumentSaveFailed = event => {
     if (this.props.onDocumentSaveFailed) {
       this.props.onDocumentSaveFailed(event.nativeEvent);
     }
   };
 
-  _onDocumentLoadFailed = (event) => {
+  _onDocumentLoadFailed = event => {
     if (this.props.onDocumentLoadFailed) {
       this.props.onDocumentLoadFailed(event.nativeEvent);
     }
   };
 
-  _onAnnotationTapped = (event) => {
+  _onAnnotationTapped = event => {
     if (this.props.onAnnotationTapped) {
       this.props.onAnnotationTapped(event.nativeEvent);
     }
   };
 
-  _onAnnotationsChanged = (event) => {
+  _onAnnotationsChanged = event => {
     if (this.props.onAnnotationsChanged) {
       this.props.onAnnotationsChanged(event.nativeEvent);
     }
   };
 
-  _onNavigationButtonClicked = (event) => {
+  _onNavigationButtonClicked = event => {
     if (this.props.onNavigationButtonClicked) {
       this.props.onNavigationButtonClicked(event.nativeEvent);
     }
   };
 
-  _onDataReturned = (event) => {
-    let { requestId, result, error } = event.nativeEvent;
+  _onDataReturned = event => {
+    let {requestId, result, error} = event.nativeEvent;
     let promise = this._requestMap[requestId];
     if (result != undefined) {
       promise.resolve(result);
@@ -101,18 +101,39 @@ class PSPDFKitView extends React.Component {
     this._requestMap.delete(requestId);
   };
 
+  /**-------------------------------------------------------------------------
+   * PlanTrail
+   * Create a png file from cropped pdf page including annotations
+   */
+  extractSnippet = function({fileGuid, x, y, width, height, pageIndex}) {
+    if (Platform.OS === 'android') {
+      throw new Error(
+        'Android not supported for this PlanTrail specific function, (extractSnippet'
+      );
+    } else if (Platform.OS === 'ios') {
+      return NativeModules.PSPDFKitViewManager.extractSnippet(
+        fileGuid,
+        x,
+        y,
+        width,
+        height,
+        pageIndex,
+        findNodeHandle(this.refs.pdfView)
+      );
+    }
+  };
+
   /**
    * Enters the annotation creation mode, showing the annotation creation toolbar.
    */
-  enterAnnotationCreationMode = function () {
-    if (Platform.OS === "android") {
+  enterAnnotationCreationMode = function() {
+    if (Platform.OS === 'android') {
       UIManager.dispatchViewManagerCommand(
         findNodeHandle(this.refs.pdfView),
-        this._getViewManagerConfig("RCTPSPDFKitView").Commands
-          .enterAnnotationCreationMode,
+        this._getViewManagerConfig('RCTPSPDFKitView').Commands.enterAnnotationCreationMode,
         []
       );
-    } else if (Platform.OS === "ios") {
+    } else if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.enterAnnotationCreationMode(
         findNodeHandle(this.refs.pdfView)
       );
@@ -122,15 +143,14 @@ class PSPDFKitView extends React.Component {
   /**
    * Exits the currently active mode, hiding all toolbars.
    */
-  exitCurrentlyActiveMode = function () {
-    if (Platform.OS === "android") {
+  exitCurrentlyActiveMode = function() {
+    if (Platform.OS === 'android') {
       UIManager.dispatchViewManagerCommand(
         findNodeHandle(this.refs.pdfView),
-        this._getViewManagerConfig("RCTPSPDFKitView").Commands
-          .exitCurrentlyActiveMode,
+        this._getViewManagerConfig('RCTPSPDFKitView').Commands.exitCurrentlyActiveMode,
         []
       );
-    } else if (Platform.OS === "ios") {
+    } else if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.exitCurrentlyActiveMode(
         findNodeHandle(this.refs.pdfView)
       );
@@ -142,25 +162,24 @@ class PSPDFKitView extends React.Component {
    *
    * Returns a promise resolving to true if the document was saved, and false otherwise.
    */
-  saveCurrentDocument = function () {
-    if (Platform.OS === "android") {
+  saveCurrentDocument = function() {
+    if (Platform.OS === 'android') {
       let requestId = this._nextRequestId++;
       let requestMap = this._requestMap;
 
       // We create a promise here that will be resolved once onDataReturned is called.
-      let promise = new Promise(function (resolve, reject) {
-        requestMap[requestId] = { resolve: resolve, reject: reject };
+      let promise = new Promise(function(resolve, reject) {
+        requestMap[requestId] = {resolve: resolve, reject: reject};
       });
 
       UIManager.dispatchViewManagerCommand(
         findNodeHandle(this.refs.pdfView),
-        this._getViewManagerConfig("RCTPSPDFKitView").Commands
-          .saveCurrentDocument,
+        this._getViewManagerConfig('RCTPSPDFKitView').Commands.saveCurrentDocument,
         [requestId]
       );
 
       return promise;
-    } else if (Platform.OS === "ios") {
+    } else if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.saveCurrentDocument(
         findNodeHandle(this.refs.pdfView)
       );
@@ -176,24 +195,24 @@ class PSPDFKitView extends React.Component {
    * Returns a promise resolving an array with the following structure:
    * {'annotations' : [instantJson]}
    */
-  getAnnotations = function (pageIndex, type) {
-    if (Platform.OS === "android") {
+  getAnnotations = function(pageIndex, type) {
+    if (Platform.OS === 'android') {
       let requestId = this._nextRequestId++;
       let requestMap = this._requestMap;
 
       // We create a promise here that will be resolved once onDataReturned is called.
-      let promise = new Promise(function (resolve, reject) {
-        requestMap[requestId] = { resolve: resolve, reject: reject };
+      let promise = new Promise(function(resolve, reject) {
+        requestMap[requestId] = {resolve: resolve, reject: reject};
       });
 
       UIManager.dispatchViewManagerCommand(
         findNodeHandle(this.refs.pdfView),
-        this._getViewManagerConfig("RCTPSPDFKitView").Commands.getAnnotations,
+        this._getViewManagerConfig('RCTPSPDFKitView').Commands.getAnnotations,
         [requestId, pageIndex, type]
       );
 
       return promise;
-    } else if (Platform.OS === "ios") {
+    } else if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.getAnnotations(
         pageIndex,
         type,
@@ -209,24 +228,24 @@ class PSPDFKitView extends React.Component {
    *
    * Returns a promise resolving to true if the annotation was added. Otherwise, returns false if an error has occurred.
    */
-  addAnnotation = function (annotation) {
-    if (Platform.OS === "android") {
+  addAnnotation = function(annotation) {
+    if (Platform.OS === 'android') {
       let requestId = this._nextRequestId++;
       let requestMap = this._requestMap;
 
       // We create a promise here that will be resolved once onDataReturned is called.
-      let promise = new Promise(function (resolve, reject) {
-        requestMap[requestId] = { resolve: resolve, reject: reject };
+      let promise = new Promise(function(resolve, reject) {
+        requestMap[requestId] = {resolve: resolve, reject: reject};
       });
 
       UIManager.dispatchViewManagerCommand(
         findNodeHandle(this.refs.pdfView),
-        this._getViewManagerConfig("RCTPSPDFKitView").Commands.addAnnotation,
+        this._getViewManagerConfig('RCTPSPDFKitView').Commands.addAnnotation,
         [requestId, annotation]
       );
 
       return promise;
-    } else if (Platform.OS === "ios") {
+    } else if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.addAnnotation(
         annotation,
         findNodeHandle(this.refs.pdfView)
@@ -241,24 +260,24 @@ class PSPDFKitView extends React.Component {
    *
    * Returns a promise resolving to true if the annotation was removed. Otherwise, returns false if the annotation couldn't be found.
    */
-  removeAnnotation = function (annotation) {
-    if (Platform.OS === "android") {
+  removeAnnotation = function(annotation) {
+    if (Platform.OS === 'android') {
       let requestId = this._nextRequestId++;
       let requestMap = this._requestMap;
 
       // We create a promise here that will be resolved once onDataReturned is called.
-      let promise = new Promise(function (resolve, reject) {
-        requestMap[requestId] = { resolve: resolve, reject: reject };
+      let promise = new Promise(function(resolve, reject) {
+        requestMap[requestId] = {resolve: resolve, reject: reject};
       });
 
       UIManager.dispatchViewManagerCommand(
         findNodeHandle(this.refs.pdfView),
-        this._getViewManagerConfig("RCTPSPDFKitView").Commands.removeAnnotation,
+        this._getViewManagerConfig('RCTPSPDFKitView').Commands.removeAnnotation,
         [requestId, annotation]
       );
 
       return promise;
-    } else if (Platform.OS === "ios") {
+    } else if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.removeAnnotation(
         annotation,
         findNodeHandle(this.refs.pdfView)
@@ -271,25 +290,24 @@ class PSPDFKitView extends React.Component {
    *
    * Returns a promise resolving to document instant json (https://pspdfkit.com/guides/android/current/importing-exporting/instant-json/#instant-document-json-api-a56628).
    */
-  getAllUnsavedAnnotations = function () {
-    if (Platform.OS === "android") {
+  getAllUnsavedAnnotations = function() {
+    if (Platform.OS === 'android') {
       let requestId = this._nextRequestId++;
       let requestMap = this._requestMap;
 
       // We create a promise here that will be resolved once onDataReturned is called.
-      let promise = new Promise(function (resolve, reject) {
-        requestMap[requestId] = { resolve: resolve, reject: reject };
+      let promise = new Promise(function(resolve, reject) {
+        requestMap[requestId] = {resolve: resolve, reject: reject};
       });
 
       UIManager.dispatchViewManagerCommand(
         findNodeHandle(this.refs.pdfView),
-        this._getViewManagerConfig("RCTPSPDFKitView").Commands
-          .getAllUnsavedAnnotations,
+        this._getViewManagerConfig('RCTPSPDFKitView').Commands.getAllUnsavedAnnotations,
         [requestId]
       );
 
       return promise;
-    } else if (Platform.OS === "ios") {
+    } else if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.getAllUnsavedAnnotations(
         findNodeHandle(this.refs.pdfView)
       );
@@ -304,25 +322,24 @@ class PSPDFKitView extends React.Component {
    * Returns a promise resolving an array with the following structure:
    * {'annotations' : [instantJson]}
    */
-  getAllAnnotations = function (type) {
-    if (Platform.OS === "android") {
+  getAllAnnotations = function(type) {
+    if (Platform.OS === 'android') {
       let requestId = this._nextRequestId++;
       let requestMap = this._requestMap;
 
       // We create a promise here that will be resolved once onDataReturned is called.
-      let promise = new Promise(function (resolve, reject) {
-        requestMap[requestId] = { resolve: resolve, reject: reject };
+      let promise = new Promise(function(resolve, reject) {
+        requestMap[requestId] = {resolve: resolve, reject: reject};
       });
 
       UIManager.dispatchViewManagerCommand(
         findNodeHandle(this.refs.pdfView),
-        this._getViewManagerConfig("RCTPSPDFKitView").Commands
-          .getAllAnnotations,
+        this._getViewManagerConfig('RCTPSPDFKitView').Commands.getAllAnnotations,
         [requestId, type]
       );
 
       return promise;
-    } else if (Platform.OS === "ios") {
+    } else if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.getAllAnnotations(
         type,
         findNodeHandle(this.refs.pdfView)
@@ -337,24 +354,24 @@ class PSPDFKitView extends React.Component {
    *
    * Returns a promise resolving to true if the annotation was added.
    */
-  addAnnotations = function (annotations) {
-    if (Platform.OS === "android") {
+  addAnnotations = function(annotations) {
+    if (Platform.OS === 'android') {
       let requestId = this._nextRequestId++;
       let requestMap = this._requestMap;
 
       // We create a promise here that will be resolved once onDataReturned is called.
-      let promise = new Promise(function (resolve, reject) {
-        requestMap[requestId] = { resolve: resolve, reject: reject };
+      let promise = new Promise(function(resolve, reject) {
+        requestMap[requestId] = {resolve: resolve, reject: reject};
       });
 
       UIManager.dispatchViewManagerCommand(
         findNodeHandle(this.refs.pdfView),
-        this._getViewManagerConfig("RCTPSPDFKitView").Commands.addAnnotations,
+        this._getViewManagerConfig('RCTPSPDFKitView').Commands.addAnnotations,
         [requestId, annotations]
       );
 
       return promise;
-    } else if (Platform.OS === "ios") {
+    } else if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.addAnnotations(
         annotations,
         findNodeHandle(this.refs.pdfView)
@@ -370,25 +387,24 @@ class PSPDFKitView extends React.Component {
    * Returns a promise resolving a dictionary with the following structure:
    * {'formElement' : value} or {'error' : 'Failed to get the form field value.'}
    */
-  getFormFieldValue = function (fullyQualifiedName) {
-    if (Platform.OS === "android") {
+  getFormFieldValue = function(fullyQualifiedName) {
+    if (Platform.OS === 'android') {
       let requestId = this._nextRequestId++;
       let requestMap = this._requestMap;
 
       // We create a promise here that will be resolved once onDataReturned is called.
-      let promise = new Promise(function (resolve, reject) {
-        requestMap[requestId] = { resolve: resolve, reject: reject };
+      let promise = new Promise(function(resolve, reject) {
+        requestMap[requestId] = {resolve: resolve, reject: reject};
       });
 
       UIManager.dispatchViewManagerCommand(
         findNodeHandle(this.refs.pdfView),
-        this._getViewManagerConfig("RCTPSPDFKitView").Commands
-          .getFormFieldValue,
+        this._getViewManagerConfig('RCTPSPDFKitView').Commands.getFormFieldValue,
         [requestId, fullyQualifiedName]
       );
 
       return promise;
-    } else if (Platform.OS === "ios") {
+    } else if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.getFormFieldValue(
         fullyQualifiedName,
         findNodeHandle(this.refs.pdfView)
@@ -404,25 +420,24 @@ class PSPDFKitView extends React.Component {
    *
    * Returns a promise resolving to true if the value was set, and false otherwise.
    */
-  setFormFieldValue = function (fullyQualifiedName, value) {
-    if (Platform.OS === "android") {
+  setFormFieldValue = function(fullyQualifiedName, value) {
+    if (Platform.OS === 'android') {
       let requestId = this._nextRequestId++;
       let requestMap = this._requestMap;
 
       // We create a promise here that will be resolved once onDataReturned is called.
-      let promise = new Promise(function (resolve, reject) {
-        requestMap[requestId] = { resolve: resolve, reject: reject };
+      let promise = new Promise(function(resolve, reject) {
+        requestMap[requestId] = {resolve: resolve, reject: reject};
       });
 
       UIManager.dispatchViewManagerCommand(
         findNodeHandle(this.refs.pdfView),
-        this._getViewManagerConfig("RCTPSPDFKitView").Commands
-          .setFormFieldValue,
+        this._getViewManagerConfig('RCTPSPDFKitView').Commands.setFormFieldValue,
         [requestId, fullyQualifiedName, value]
       );
 
       return promise;
-    } else if (Platform.OS === "ios") {
+    } else if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.setFormFieldValue(
         value,
         fullyQualifiedName,
@@ -440,8 +455,8 @@ class PSPDFKitView extends React.Component {
    *
    * @platform ios
    */
-  setLeftBarButtonItems = function (items, viewMode, animated) {
-    if (Platform.OS === "ios") {
+  setLeftBarButtonItems = function(items, viewMode, animated) {
+    if (Platform.OS === 'ios') {
       NativeModules.PSPDFKitViewManager.setLeftBarButtonItems(
         items,
         viewMode,
@@ -459,8 +474,8 @@ class PSPDFKitView extends React.Component {
    * ['outlineButtonItem', 'searchButtonItem'] or a dictionary with the following error {'error' : 'Failed to get the left bar button items.'}
    * @platform ios
    */
-  getLeftBarButtonItemsForViewMode = function (viewMode) {
-    if (Platform.OS === "ios") {
+  getLeftBarButtonItemsForViewMode = function(viewMode) {
+    if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.getLeftBarButtonItemsForViewMode(
         viewMode,
         findNodeHandle(this.refs.pdfView)
@@ -477,8 +492,8 @@ class PSPDFKitView extends React.Component {
    *
    * @platform ios
    */
-  setRightBarButtonItems = function (items, viewMode, animated) {
-    if (Platform.OS === "ios") {
+  setRightBarButtonItems = function(items, viewMode, animated) {
+    if (Platform.OS === 'ios') {
       NativeModules.PSPDFKitViewManager.setRightBarButtonItems(
         items,
         viewMode,
@@ -496,8 +511,8 @@ class PSPDFKitView extends React.Component {
    * ['annotationButtonItem', 'documentEditorButtonItem'] or a dictionary with the following error {'error' : 'Failed to get the right bar button items.'}
    * @platform ios
    */
-  getRightBarButtonItemsForViewMode = function (viewMode) {
-    if (Platform.OS === "ios") {
+  getRightBarButtonItemsForViewMode = function(viewMode) {
+    if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.getRightBarButtonItemsForViewMode(
         viewMode,
         findNodeHandle(this.refs.pdfView)
@@ -505,7 +520,7 @@ class PSPDFKitView extends React.Component {
     }
   };
 
-  _getViewManagerConfig = (viewManagerName) => {
+  _getViewManagerConfig = viewManagerName => {
     const version = NativeModules.PlatformConstants.reactNativeVersion.minor;
     if (version >= 58) {
       return UIManager.getViewManagerConfig(viewManagerName);
@@ -686,22 +701,18 @@ PSPDFKitView.propTypes = {
   showDownloadableFonts: PropTypes.bool,
 };
 
-if (Platform.OS === "ios" || Platform.OS === "android") {
-  var RCTPSPDFKitView = requireNativeComponent(
-    "RCTPSPDFKitView",
-    PSPDFKitView,
-    {
-      nativeOnly: {
-        testID: true,
-        accessibilityComponentType: true,
-        renderToHardwareTextureAndroid: true,
-        accessibilityLabel: true,
-        accessibilityLiveRegion: true,
-        importantForAccessibility: true,
-        onLayout: true,
-        nativeID: true,
-      },
-    }
-  );
+if (Platform.OS === 'ios' || Platform.OS === 'android') {
+  var RCTPSPDFKitView = requireNativeComponent('RCTPSPDFKitView', PSPDFKitView, {
+    nativeOnly: {
+      testID: true,
+      accessibilityComponentType: true,
+      renderToHardwareTextureAndroid: true,
+      accessibilityLabel: true,
+      accessibilityLiveRegion: true,
+      importantForAccessibility: true,
+      onLayout: true,
+      nativeID: true,
+    },
+  });
   module.exports = PSPDFKitView;
 }
