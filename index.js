@@ -101,7 +101,7 @@ class PSPDFKitView extends React.Component {
     this._requestMap.delete(requestId);
   };
 
-  /**-------------------------------------------------------------------------
+  /*-------------------------------------------------------------------------
    * PlanTrail
    * Create a png file from cropped pdf page including annotations
    */
@@ -140,6 +140,24 @@ class PSPDFKitView extends React.Component {
       );
     }
   };
+
+  /**-------------------------------------------------------------------------
+   * PlanTrail
+   * Get the width of a page
+   */
+  getPageSize = function(pageIndex) {
+    if (Platform.OS === 'android') {
+      throw new Error(
+        'Android not supported for this PlanTrail specific function, (extractSnippet'
+      );
+    } else if (Platform.OS === 'ios') {
+      return NativeModules.PSPDFKitViewManager.getPageSize(
+        pageIndex,
+        findNodeHandle(this.refs.pdfView)
+      );
+    }
+  };
+  /**-------------------------------------------------------------------------
 
   /**
    * Enters the annotation creation mode, showing the annotation creation toolbar.

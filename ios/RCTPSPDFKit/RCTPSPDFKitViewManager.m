@@ -195,19 +195,24 @@ RCT_EXPORT_METHOD(
 }
 
 
-// RCT_EXPORT_METHOD(getPageWidth::(nonnull NSNumber *)pageIndex resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-//   dispatch_async(dispatch_get_main_queue(), ^{
-//     RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
-//     NSError *error;
-//     CGFloat *pageWidth = [component getPageWidthForPageAtIndex:(PSPDFPageIndex)pageIndex.integerValue error:&error];
+RCT_REMAP_METHOD(getPageSize,
+  getPageSize:(NSInteger)pageIndex
+  reactTag:(nonnull NSNumber *)reactTag
+  resolver:(RCTPromiseResolveBlock)resolve 
+  rejecter:(RCTPromiseRejectBlock)reject
+){
+  dispatch_async(dispatch_get_main_queue(), ^{
+    RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
+    NSError *error;
+    NSDictionary *pageSize = [component getPageSizeForPageAtIndex:pageIndex error:&error];
 
-//     if (pageWidth) {
-//       resolve((double) pageWidth);
-//     } else {
-//       reject(@"error", @"Failed to get pageWidth.", error);
-//     }
-//   });
-// }
+    if (pageSize) {
+      resolve(pageSize);
+    } else {
+      reject(@"error", @"Failed to get pageWidth.", error);
+    }
+  });
+}
 
 //--------------------------------------------------------------------------------
 
@@ -249,7 +254,13 @@ RCT_EXPORT_METHOD(saveCurrentDocument:(nonnull NSNumber *)reactTag resolver:(RCT
   });
 }
 
-RCT_REMAP_METHOD(getAnnotations, getAnnotations:(nonnull NSNumber *)pageIndex type:(NSString *)type reactTag:(nonnull NSNumber *)reactTag resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+RCT_REMAP_METHOD(getAnnotations, 
+  getAnnotations:(nonnull NSNumber *)pageIndex 
+  type:(NSString *)type 
+  reactTag:(nonnull NSNumber *)reactTag 
+  resolver:(RCTPromiseResolveBlock)resolve 
+  rejecter:(RCTPromiseRejectBlock)reject) 
+{
   dispatch_async(dispatch_get_main_queue(), ^{
     RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
     NSError *error;

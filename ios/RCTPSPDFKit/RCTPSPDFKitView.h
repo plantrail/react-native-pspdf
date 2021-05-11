@@ -42,13 +42,9 @@ NS_ASSUME_NONNULL_BEGIN
 - (BOOL)saveCurrentDocumentWithError:(NSError *_Nullable *)error;
 
 ///PlanTrail -------------------------------------
-- (void)saveImageAsPng:(UIImage*)image withFileName:(NSString*)fileName;
-- (void)saveImageAsJpg:(UIImage*)image withFileName:(NSString*)fileName;
-- (void)saveBlueprintImagesAsJpg:(UIImage*)imageOriginal withFileGuid:(NSString*)fileGuid;
 - (BOOL)extractBlueprint:(NSString*)fileGuid withClipRect:(CGRect)clipRect atPageIndex:(NSInteger)pageIndex error:(NSError *_Nullable *)error;
 - (BOOL)extractSnippet:(NSString*)fileGuid withClipRect:(CGRect)clipRect atPageIndex:(NSInteger)pageIndex error:(NSError *_Nullable *)error;
-
-// - (CGFloat)getPageWidthForPageAtIndex:(PSPDFPageIndex)pageIndex error:(NSError *_Nullable *)error;
+- (NSDictionary *) getPageSizeForPageAtIndex:(NSInteger)pageIndex error:(NSError *_Nullable *)error;
 ///----------------------------------------------
 
 /// Anotations

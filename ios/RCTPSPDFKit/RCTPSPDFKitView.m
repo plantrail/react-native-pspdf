@@ -154,14 +154,12 @@
 
 - (void)saveBlueprintImagesAsJpg:(UIImage*)imageOriginal withFileGuid:(NSString*)fileGuid {
   NSString *fileNameThumbnail = [fileGuid stringByAppendingString:@"_thumbnail.jpg"];
-  NSString *fileNameMedium = [fileGuid stringByAppendingString:@"_medium.jpg"];
   NSString *fileNameOriginal = [fileGuid stringByAppendingString:@"_original.jpg"];
 
-  UIImage *imageMedium = [self imageWithImage:imageOriginal scaledToSize: 4000];
+  UIImage *imageScaledOriginal = [self imageWithImage:imageOriginal scaledToSize: 4000];
   UIImage *imageThumbnail = [self imageWithImage:imageOriginal scaledToSize: 120];
 
-  [self saveImageAsJpg:imageOriginal withFileName:fileNameOriginal];
-  [self saveImageAsJpg:imageMedium withFileName:fileNameMedium];
+  [self saveImageAsJpg:imageScaledOriginal withFileName:fileNameOriginal];
   [self saveImageAsJpg:imageThumbnail withFileName:fileNameThumbnail];
 };
 
@@ -185,6 +183,15 @@
   return success;
 }
 
+- (void)saveSnippetImagesAsPng:(UIImage*)imageOriginal withFileGuid:(NSString*)fileGuid {
+  NSString *fileNameThumbnail = [fileGuid stringByAppendingString:@"_thumbnail.png"];
+  NSString *fileNameOriginal = [fileGuid stringByAppendingString:@"_original.png"];
+
+  UIImage *imageThumbnail = [self imageWithImage:imageOriginal scaledToSize: 200];
+
+  [self saveImageAsJpg:imageOriginal withFileName:fileNameOriginal];
+  [self saveImageAsJpg:imageThumbnail withFileName:fileNameThumbnail];
+};
 
 - (BOOL)extractSnippet:(NSString*)fileGuid withClipRect:(CGRect)clipRect atPageIndex:(NSInteger)pageIndex error:(NSError *_Nullable *)error {
   BOOL success = YES;
@@ -201,8 +208,7 @@
   
   // UIImage *image = [document imageForPageAtIndex:pageIndex size:pageInfo.size clippedToRect:clipRect annotations:annotations options:nil error:&error];
   UIImage *image = [document imageForPageAtIndex:pageIndex size:pageInfo.size clippedToRect:clipRect annotations:annotations options:nil error:&error];
-  NSString *fileName = [fileGuid stringByAppendingString:@".png"];
-  [self saveImageAsPng:image withFileName:fileName];
+  [self saveSnippetImagesAsPng:image withFileGuid:fileGuid];
 
   if (!success) {
     NSLog(@"Failed to extract snippet.");
@@ -211,21 +217,18 @@
   return success;
 }
 
-// - (NSDictionary<NSString *, NSArray<NSDictionary *> *> *)getPageInfo:(PSPDFPageIndex)pageIndex error:(NSError *_Nullable *)error {
-//   PSPDFDocument *document = self.pdfController.document;
-//   VALIDATE_DOCUMENT(document, nil);
-  
-//   NSArray <PSPDFPageInfo *> *pageInfo = [document pageInfoForPageAtIndex:pageIndex];
-//   NSArray <NSDictionary *> *pageInfoJSON = [RCTConvert instantJSONFromPageInfo:pageInfo error:error];
-//   return @{@"pageInfo" : pageInfoJSON};
-// }
 
+- (NSDictionary *) getPageSizeForPageAtIndex:(NSInteger)pageIndex error:(NSError *_Nullable *)error {
+  PSPDFDocument *document = self.pdfController.document;
+  VALIDATE_DOCUMENT(document, NO);
 
-// - (CGFloat) getPageWidthForPageAtIndex {
-//   PSPDFPageInfo *pageInfo = [document pageInfoForPageAtIndex:pageIndex];
-//   CGFloat pageWidth = pageInfo.size.width;
-//   return pageWidth;
-// }
+  PSPDFPageInfo *pageInfo = [document pageInfoForPageAtIndex:pageIndex];
+  return @{ 
+    @"width" : [NSNumber numberWithDouble:pageInfo.size.width], 
+    @"height" : [NSNumber numberWithDouble:pageInfo.size.height]
+  };
+}
+
 //--------------------------------------------------------------------------
 
 
