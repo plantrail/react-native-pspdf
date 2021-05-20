@@ -9,6 +9,7 @@
 
 #import <UIKit/UIKit.h>
 #import <React/RCTComponent.h>
+#import <React/RCTBridgeModule.h>
 
 @import PSPDFKit;
 @import PSPDFKitUI;
@@ -42,9 +43,17 @@ NS_ASSUME_NONNULL_BEGIN
 - (BOOL)saveCurrentDocumentWithError:(NSError *_Nullable *)error;
 
 ///PlanTrail -------------------------------------
-- (BOOL)extractBlueprint:(NSString*)fileGuid withClipRect:(CGRect)clipRect atPageIndex:(NSInteger)pageIndex error:(NSError *_Nullable *)error;
-- (BOOL)extractSnippet:(NSString*)fileGuid withClipRect:(CGRect)clipRect atPageIndex:(NSInteger)pageIndex error:(NSError *_Nullable *)error;
-- (NSDictionary *) getPageSizeForPageAtIndex:(NSInteger)pageIndex error:(NSError *_Nullable *)error;
+- (NSDictionary *) getPageSizeForPageAtIndex:(PSPDFPageIndex)pageIndex;
+
+- (void)extractImage:(NSString*)fileGuid 
+    atPageIndex:(PSPDFPageIndex)pageIndex 
+    withClipRect:(CGRect)clipRect 
+    atSize:(CGFloat)maxSize 
+    withResolution:(CGFloat)resolution
+    asFileType:(NSString*)fileType
+    resolver:(RCTPromiseResolveBlock)resolve 
+    rejecter:(RCTPromiseRejectBlock)reject
+    error:(NSError *_Nullable *)error;
 ///----------------------------------------------
 
 /// Anotations

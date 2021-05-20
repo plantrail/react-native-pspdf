@@ -15,6 +15,8 @@
 
 #define VALIDATE_DOCUMENT(document, ...) { if (!document.isValid) { NSLog(@"Document is invalid."); if (self.onDocumentLoadFailed) { self.onDocumentLoadFailed(@{@"error": @"Document is invalid."}); } return __VA_ARGS__; }}
 
+typedef void (^imageRenderCompletionHandler)(UIImage *_Nullable, NSError *_Nullable);
+
 @interface RCTPSPDFKitViewController : PSPDFViewController
 @end
 
@@ -119,14 +121,27 @@
 }
 
 
-// //--------------- PlanTrail -----------------------------------------
-- (UIImage *)imageWithImage:(UIImage *)image scaledToSize:(CGFloat)newSize {
+//====================== PlanTrail ===========================================================
+//-------------- sizeFromSize ----------------------------------------------------------
+- (CGSize)
+    sizeFromSize:(CGSize)size 
+    withLargestSide:(CGFloat)maxSize 
+  {
     CGSize newCGSize;
-    if (image.size.width > image.size.height) {
-      newCGSize = CGSizeMake(newSize, newSize * image.size.height/image.size.width);
+    if (size.width > size.height) {
+      newCGSize = CGSizeMake(maxSize, maxSize * size.height/size.width);
     } else {
-      newCGSize = CGSizeMake(newSize * image.size.width/image.size.height, newSize);
+      newCGSize = CGSizeMake(maxSize * size.width/size.height, maxSize);
     }
+    return newCGSize;
+}
+
+//-------------- resizeImage ----------------------------------------------------------
+- (UIImage *)
+    resizeImage:(UIImage *)image 
+    to:(CGFloat)maxSize 
+  {
+    CGSize newCGSize = [self sizeFromSize:image.size withLargestSide:maxSize];
 
     UIGraphicsBeginImageContextWithOptions(newCGSize, NO, 1.0);
     [image drawInRect:CGRectMake(0, 0, newCGSize.width, newCGSize.height)];
@@ -135,92 +150,125 @@
     return newImage;
 }
 
-- (void)saveImageAsPng:(UIImage*)image withFileName:(NSString*)fileName {
+//-------------- saveImageAsPng ----------------------------------------------------------
+- (BOOL)
+    saveImageAsPng:(UIImage*)image 
+    withFileName:(NSString*)fileName 
+  {
+  fileName = [fileName stringByAppendingString:@".png"];
+
   NSString *documentsDirectory = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
   NSString *filePath = [documentsDirectory stringByAppendingPathComponent:fileName];
 
   // Convert UIImage object into NSData (a wrapper for a stream of bytes) formatted according to PNG spec
   NSData *imageData = UIImagePNGRepresentation(image); 
-  [imageData writeToFile:filePath atomically:YES];
+  return [imageData writeToFile:filePath atomically:YES];
 };
 
-- (void)saveImageAsJpg:(UIImage*)image withFileName:(NSString*)fileName {
+//-------------- saveImageAsJpg ----------------------------------------------------------
+- (BOOL)
+    saveImageAsJpg:(UIImage*)image 
+    withFileName:(NSString*)fileName 
+  {
+  fileName = [fileName stringByAppendingString:@".jpg"];
+
   NSString *documentsDirectory = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
   NSString *filePath = [documentsDirectory stringByAppendingPathComponent:fileName];
 
-  NSData *imageData = UIImageJPEGRepresentation(image, 0.85f); // quality level 85%
-  [imageData writeToFile:filePath atomically:YES];
+  NSData *imageData = UIImageJPEGRepresentation(image, 0.85f);
+  return [imageData writeToFile:filePath atomically:YES];
 };
 
-- (void)saveBlueprintImagesAsJpg:(UIImage*)imageOriginal withFileGuid:(NSString*)fileGuid {
-  NSString *fileNameThumbnail = [fileGuid stringByAppendingString:@"_thumbnail.jpg"];
-  NSString *fileNameOriginal = [fileGuid stringByAppendingString:@"_original.jpg"];
-
-  UIImage *imageScaledOriginal = [self imageWithImage:imageOriginal scaledToSize: 4000];
-  UIImage *imageThumbnail = [self imageWithImage:imageOriginal scaledToSize: 120];
-
-  [self saveImageAsJpg:imageScaledOriginal withFileName:fileNameOriginal];
-  [self saveImageAsJpg:imageThumbnail withFileName:fileNameThumbnail];
-};
-
-- (BOOL)extractBlueprint:(NSString*)fileGuid withClipRect:(CGRect)clipRect atPageIndex:(NSInteger)pageIndex error:(NSError *_Nullable *)error {
-  BOOL success = YES;
-
+//-------------- extractImage ----------------------------------------------------------
+- (void)
+    extractImage:(NSString*)fileGuid 
+    atPageIndex:(PSPDFPageIndex)pageIndex 
+    withClipRect:(CGRect)clipRect 
+    atSize:(CGFloat)maxSize 
+    withResolution:(CGFloat)resolution //if resolution is given, size will be omitted 
+    asFileType:(NSString *)fileType //"jpg" or "png"
+    resolver:(RCTPromiseResolveBlock)resolve
+    rejecter:(RCTPromiseRejectBlock)reject
+    error:(NSError *_Nullable *)error 
+  {
   PSPDFDocument *document = self.pdfController.document;
-  VALIDATE_DOCUMENT(document, NO)
-//  PSPDFDocumentProvider *documentProvider = document.documentProviders.firstObject;
+  VALIDATE_DOCUMENT(document);
 
   PSPDFPageInfo *pageInfo = [document pageInfoForPageAtIndex:pageIndex];
-  CGSize extractionSize = CGSizeMake(pageInfo.size.width * 2, pageInfo.size.height * 2);
 
-  UIImage *image = [document imageForPageAtIndex:pageIndex size:extractionSize clippedToRect:clipRect annotations:nil options:nil error:&error];
-  [self saveBlueprintImagesAsJpg:image withFileGuid:fileGuid];
-
-  if (!success) {
-    NSLog(@"Failed to extract blueprint.");
+  if(CGRectIsEmpty(clipRect)) {
+    //If no clipRect is provided we will extract the whole page
+    clipRect = CGRectMake(0,0,pageInfo.size.width, pageInfo.size.height);
+  } else {
+    //Use the lower y (y2) and flip it from ViewCoordinates to PdfCoordinates
+    clipRect.origin.y = pageInfo.size.height - (clipRect.origin.y + clipRect.size.height);
   }
-  
-  return success;
-}
 
-- (void)saveSnippetImagesAsPng:(UIImage*)imageOriginal withFileGuid:(NSString*)fileGuid {
-  NSString *fileNameThumbnail = [fileGuid stringByAppendingString:@"_thumbnail.png"];
-  NSString *fileNameOriginal = [fileGuid stringByAppendingString:@"_original.png"];
+  CGSize extractedImageSize;
+  if(resolution > 0) {
+    //72 dpi is default for PDFs
+    CGFloat scaleFactor = resolution / 72.0;
+    CGSize baseSize = (CGRectIsEmpty(clipRect)) ? pageInfo.size : clipRect.size;
+    extractedImageSize = CGSizeMake(baseSize.width * scaleFactor, baseSize.height * scaleFactor);
+  } else {
+    extractedImageSize = CGSizeMake(maxSize, maxSize);
+  }
 
-  UIImage *imageThumbnail = [self imageWithImage:imageOriginal scaledToSize: 200];
-
-  [self saveImageAsJpg:imageOriginal withFileName:fileNameOriginal];
-  [self saveImageAsJpg:imageThumbnail withFileName:fileNameThumbnail];
-};
-
-- (BOOL)extractSnippet:(NSString*)fileGuid withClipRect:(CGRect)clipRect atPageIndex:(NSInteger)pageIndex error:(NSError *_Nullable *)error {
-  BOOL success = YES;
-
-  PSPDFDocument *document = self.pdfController.document;
-  VALIDATE_DOCUMENT(document, NO)
-//  PSPDFDocumentProvider *documentProvider = document.documentProviders.firstObject;
-
-  PSPDFAnnotationType *type = PSPDFAnnotationTypeHighlight;
   //Get all annotations of type Highlight, for specifying which annotations should be rendered to the image
+  PSPDFAnnotationType *type = PSPDFAnnotationTypeHighlight;
   NSArray <PSPDFAnnotation *> *annotations = [document annotationsForPageAtIndex:pageIndex type:type];
 
-  PSPDFPageInfo *pageInfo = [document pageInfoForPageAtIndex:pageIndex];
-  
-  // UIImage *image = [document imageForPageAtIndex:pageIndex size:pageInfo.size clippedToRect:clipRect annotations:annotations options:nil error:&error];
-  UIImage *image = [document imageForPageAtIndex:pageIndex size:pageInfo.size clippedToRect:clipRect annotations:annotations options:nil error:&error];
-  [self saveSnippetImagesAsPng:image withFileGuid:fileGuid];
+  PSPDFMutableRenderRequest *request = [[PSPDFMutableRenderRequest alloc] initWithDocument:document];
+  request.pageIndex = pageIndex;
+  request.imageScale = 1.0;
+  request.imageSize = extractedImageSize;
+  request.pdfRect = clipRect;
+  request.annotations = annotations;
+  request.cachePolicy = PSPDFRenderRequestCachePolicyReloadIgnoringCacheData;
 
-  if (!success) {
-    NSLog(@"Failed to extract snippet.");
+  // Create a render task using the `PSPDFMutableRenderRequest`.
+  PSPDFRenderTask *task = [[PSPDFRenderTask alloc] initWithRequest:request error:&error];
+  if (task == nil) {
+      reject(@"Error", @"extractImage::PSPDfRenderTask alloc returned nil", *error);
   }
-  
-  return success;
+  task.delegate = self;
+  task.priority = PSPDFRenderQueuePriorityUtility;
+
+  imageRenderCompletionHandler handler = ^void(UIImage *imageOriginal, NSError *renderError) {
+    if(renderError) {
+      reject(@"Error", @"extractImage::PSPDFREnderTask failed", renderError);
+    }
+
+    UIImage *imageThumbnail = [self resizeImage:imageOriginal to: 120.0];
+    NSString *fileNameThumbnail = [fileGuid stringByAppendingString:@"_thumbnail"];
+    NSString *fileNameOriginal = [fileGuid stringByAppendingString:@"_original"];
+
+    BOOL success;
+    if([fileType isEqualToString:@"png"]) {
+      success = [self saveImageAsPng:imageOriginal withFileName:fileNameOriginal] &&
+        [self saveImageAsPng:imageThumbnail withFileName:fileNameThumbnail];
+    } else {
+      success = [self saveImageAsJpg:imageOriginal withFileName:fileNameOriginal] &&
+        [self saveImageAsJpg:imageThumbnail withFileName:fileNameThumbnail];
+    }
+
+    if(success) {
+      resolve(@(success));
+    } else {
+      reject(@"Error", @"extractImage::saveImage failed", nil);
+    }
+  };
+
+  task.completionHandler = handler;
+  [ PSPDFKitGlobal.sharedInstance.renderManager.renderQueue scheduleTask:task ];
 }
 
-
-- (NSDictionary *) getPageSizeForPageAtIndex:(NSInteger)pageIndex error:(NSError *_Nullable *)error {
+//-------------- getPageSizeForPageAtIndex ----------------------------------------------------------
+- (NSDictionary *)
+    getPageSizeForPageAtIndex:(PSPDFPageIndex)pageIndex 
+  {
   PSPDFDocument *document = self.pdfController.document;
-  VALIDATE_DOCUMENT(document, NO);
+  VALIDATE_DOCUMENT(document, nil);
 
   PSPDFPageInfo *pageInfo = [document pageInfoForPageAtIndex:pageIndex];
   return @{ 
@@ -229,7 +277,7 @@
   };
 }
 
-//--------------------------------------------------------------------------
+//=====================================================================================================
 
 
 - (BOOL)enterAnnotationCreationMode {

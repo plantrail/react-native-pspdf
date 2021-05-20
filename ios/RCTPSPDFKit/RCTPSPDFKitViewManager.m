@@ -151,73 +151,96 @@ RCT_CUSTOM_VIEW_PROPERTY(showDownloadableFonts, BOOL, RCTPSPDFKitView) {
   }
 }
 
-//------- PlanTrail ---------------------------------------------------------
-RCT_EXPORT_METHOD(
-    extractSnippet:(NSString*)fileGuid 
-    x:(CGFloat)x 
-    y:(CGFloat)y 
-    width:(CGFloat)width 
-    height:(CGFloat)height
-    pageIndex:(NSInteger)pageIndex
-    reactTag:(nonnull NSNumber *)reactTag resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) 
-  {
+//==========================================================================
+//======- PlanTrail ========================================================
+
+- (CGRect)cgRectFromNSDictionary:(NSDictionary*)inputClipRect {
+  if (inputClipRect == nil) {
+      NSLog(@"No clipRect");
+    return CGRectZero;
+  } else {
+    id x = [inputClipRect objectForKey:@"x"];
+    id y = [inputClipRect objectForKey:@"y"];
+    id width = [inputClipRect objectForKey:@"width"];
+    id height = [inputClipRect objectForKey:@"height"];
+
+    if (![x isKindOfClass:NSNumber.class] ||
+        ![y isKindOfClass:NSNumber.class] || 
+        ![width isKindOfClass:NSNumber.class] || 
+        ![height isKindOfClass:NSNumber.class]) {
+
+      NSLog(@"Invalid clipRect");
+      return CGRectZero;
+    }
+
+    CGRect clipRect = CGRectMake([x doubleValue], [y doubleValue], [width doubleValue], [height doubleValue]);
+    // NSLog(NSStringFromCGRect(clipRect));
+    return clipRect;
+  }
+}
+
+//------------------------------------- extractImage -------------------------------------------
+RCT_REMAP_METHOD(extractImage,
+    extractImage:(NSString*)fileGuid
+    atPageIndex:(nonnull NSNumber *)pageIndex 
+    withClipRect:(NSDictionary *)inputClipRect
+    atSize:(nonnull NSNumber *)maxSize
+    withResolution:(nonnull NSNumber *)resolution //if resolution is given, size will be omitted 
+    asFileType:(NSString*)fileType
+    reactTag:(nonnull NSNumber *)reactTag 
+    resolver:(RCTPromiseResolveBlock)resolve 
+    rejecter:(RCTPromiseRejectBlock)reject
+  ){
   dispatch_async(dispatch_get_main_queue(), ^{
     RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
     NSError *error;
+    CGRect clipRect = [self cgRectFromNSDictionary:inputClipRect]; //CGRectZero;
 
-    CGRect clipRect = CGRectMake(x, y, width, height);
-
-    BOOL success = [component extractSnippet:fileGuid withClipRect:clipRect atPageIndex:pageIndex error:&error];
-    if (success) {
-      resolve(@(success));
-    } else {
-      reject(@"error", @"Failed to extract snippet", error);
-    }
-  });
-}
-
-RCT_EXPORT_METHOD(
-    extractBlueprint:(NSString*)fileGuid
-    pageIndex:(NSInteger)pageIndex
-    reactTag:(nonnull NSNumber *)reactTag resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) 
-  {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
-    NSError *error;
-
-    BOOL success = [component extractBlueprint:fileGuid withClipRect:CGRectZero atPageIndex:pageIndex error:&error];
-    if (success) {
-      resolve(@(success));
-    } else {
-      reject(@"error", @"Failed to extract snippet", error);
-    }
+    [component 
+      extractImage:fileGuid
+      atPageIndex:(PSPDFPageIndex)pageIndex.integerValue  
+      withClipRect:clipRect 
+      atSize:[maxSize doubleValue]
+      withResolution:[resolution doubleValue] //if resolution is given, size will be omitted 
+      asFileType:fileType
+      resolver:resolve
+      rejecter:reject
+      error:&error 
+    ];
   });
 }
 
 
+//------------------------------------- getPageSize -------------------------------------------
 RCT_REMAP_METHOD(getPageSize,
-  getPageSize:(NSInteger)pageIndex
+  getPageSize:(nonnull NSNumber *)pageIndex 
   reactTag:(nonnull NSNumber *)reactTag
   resolver:(RCTPromiseResolveBlock)resolve 
   rejecter:(RCTPromiseRejectBlock)reject
 ){
   dispatch_async(dispatch_get_main_queue(), ^{
     RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
-    NSError *error;
-    NSDictionary *pageSize = [component getPageSizeForPageAtIndex:pageIndex error:&error];
+    NSDictionary *pageSize = [component 
+      getPageSizeForPageAtIndex:(PSPDFPageIndex)pageIndex.integerValue 
+    ];
 
     if (pageSize) {
       resolve(pageSize);
     } else {
-      reject(@"error", @"Failed to get pageWidth.", error);
+      reject(@"error", @"Failed to get pageWidth.", nil);
     }
   });
 }
 
-//--------------------------------------------------------------------------------
+//======- PlanTrail ========================================================
+//================================================================================
 
 
-RCT_EXPORT_METHOD(enterAnnotationCreationMode:(nonnull NSNumber *)reactTag resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+RCT_EXPORT_METHOD(
+  enterAnnotationCreationMode:(nonnull NSNumber *)reactTag 
+  resolver:(RCTPromiseResolveBlock)resolve 
+  rejecter:(RCTPromiseRejectBlock)reject
+) {
   dispatch_async(dispatch_get_main_queue(), ^{
     RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
     BOOL success = [component enterAnnotationCreationMode];

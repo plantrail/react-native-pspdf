@@ -105,7 +105,7 @@ class PSPDFKitView extends React.Component {
    * PlanTrail
    * Create a png file from cropped pdf page including annotations
    */
-  extractSnippet = function({fileGuid, x, y, width, height, pageIndex}) {
+  extractSnippet = function({fileGuid, pageIndex, clipRect}) {
     if (Platform.OS === 'android') {
       throw new Error(
         'Android not supported for this PlanTrail specific function, (extractSnippet'
@@ -113,11 +113,8 @@ class PSPDFKitView extends React.Component {
     } else if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.extractSnippet(
         fileGuid,
-        x,
-        y,
-        width,
-        height,
         pageIndex,
+        clipRect,
         findNodeHandle(this.refs.pdfView)
       );
     }
@@ -127,7 +124,7 @@ class PSPDFKitView extends React.Component {
    * PlanTrail
    * Create a jpg in each size (original, medium, thumbnail) from a page in a pdf
    */
-  extractBlueprint = function({fileGuid, x, y, width, height, pageIndex}) {
+  extractBlueprint = function({fileGuid, clipRect, pageIndex, maxSize}) {
     if (Platform.OS === 'android') {
       throw new Error(
         'Android not supported for this PlanTrail specific function, (extractSnippet'
@@ -136,6 +133,29 @@ class PSPDFKitView extends React.Component {
       return NativeModules.PSPDFKitViewManager.extractBlueprint(
         fileGuid,
         pageIndex,
+        clipRect,
+        maxSize,
+        findNodeHandle(this.refs.pdfView)
+      );
+    }
+  };
+
+  extractImage = function({fileGuid, clipRect, pageIndex, maxSize, resolution, fileType}) {
+    if (Platform.OS === 'android') {
+      throw new Error(
+        'Android not supported for this PlanTrail specific function, (extractSnippet'
+      );
+    } else if (Platform.OS === 'ios') {
+      // if(!maxSize) {
+      //   throw new Error('extractImage::maxSize must be specified')
+      // }
+      return NativeModules.PSPDFKitViewManager.extractImage(
+        fileGuid,
+        pageIndex,
+        clipRect,
+        maxSize,
+        resolution,
+        fileType,
         findNodeHandle(this.refs.pdfView)
       );
     }
