@@ -153,6 +153,7 @@ RCT_CUSTOM_VIEW_PROPERTY(showDownloadableFonts, BOOL, RCTPSPDFKitView) {
 
 //==========================================================================
 //======- PlanTrail ========================================================
+RCT_EXPORT_VIEW_PROPERTY(onAnnotationManagerStateChanged, RCTBubblingEventBlock)
 
 - (CGRect)cgRectFromNSDictionary:(NSDictionary*)inputClipRect {
   if (inputClipRect == nil) {
@@ -229,6 +230,44 @@ RCT_REMAP_METHOD(getPageSize,
     } else {
       reject(@"error", @"Failed to get pageWidth.", nil);
     }
+  });
+}
+
+//------------------------------------- startHighlightAnnotation -------------------------------------------
+RCT_EXPORT_METHOD(startHighlightAnnotationState:(nonnull NSNumber *)reactTag){
+  dispatch_async(dispatch_get_main_queue(), ^{
+    RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
+    [component setAnnotationState:PSPDFAnnotationStringHighlight variant:nil];
+  });
+}
+
+//------------------------------------- startArrowAnnotation -------------------------------------------
+RCT_EXPORT_METHOD(startArrowAnnotationState:(nonnull NSNumber *)reactTag){
+  dispatch_async(dispatch_get_main_queue(), ^{
+    RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
+    [component setAnnotationState:PSPDFAnnotationStringLine variant:PSPDFAnnotationVariantStringLineArrow];
+  });
+}
+
+RCT_EXPORT_METHOD(endAnnotationState:(nonnull NSNumber *)reactTag){
+  dispatch_async(dispatch_get_main_queue(), ^{
+    RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
+    [component setAnnotationState:nil variant:nil];
+  });
+} 
+
+//------------------------------------- startArrowAnnotation -------------------------------------------
+RCT_EXPORT_METHOD(startInkAnnotationState:(nonnull NSNumber *)reactTag){
+  dispatch_async(dispatch_get_main_queue(), ^{
+    RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
+    [component setAnnotationState:PSPDFAnnotationStringInk variant:PSPDFAnnotationVariantStringInkPen];
+  });
+}
+
+RCT_EXPORT_METHOD(hideNavigationToolbar:(nonnull NSNumber *)reactTag){
+  dispatch_async(dispatch_get_main_queue(), ^{
+    RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
+    [component setNavigationBarHidden:true];
   });
 }
 

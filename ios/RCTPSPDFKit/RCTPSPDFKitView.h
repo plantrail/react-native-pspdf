@@ -43,6 +43,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (BOOL)saveCurrentDocumentWithError:(NSError *_Nullable *)error;
 
 ///PlanTrail -------------------------------------
+@property (nonatomic, copy) RCTBubblingEventBlock onAnnotationManagerStateChanged;
+
 - (NSDictionary *) getPageSizeForPageAtIndex:(PSPDFPageIndex)pageIndex;
 
 - (void)extractImage:(NSString*)fileGuid 
@@ -54,6 +56,11 @@ NS_ASSUME_NONNULL_BEGIN
     resolver:(RCTPromiseResolveBlock)resolve 
     rejecter:(RCTPromiseRejectBlock)reject
     error:(NSError *_Nullable *)error;
+
+- (void) setAnnotationState:(nullable PSPDFAnnotationString)annotationString 
+    variant:(nullable PSPDFAnnotationVariantString)variantString;
+
+- (void) setNavigationBarHidden:(BOOL)hidden;
 ///----------------------------------------------
 
 /// Anotations

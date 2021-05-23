@@ -15,12 +15,15 @@
 
 #define VALIDATE_DOCUMENT(document, ...) { if (!document.isValid) { NSLog(@"Document is invalid."); if (self.onDocumentLoadFailed) { self.onDocumentLoadFailed(@{@"error": @"Document is invalid."}); } return __VA_ARGS__; }}
 
+//======== PlanTrail ==============
 typedef void (^imageRenderCompletionHandler)(UIImage *_Nullable, NSError *_Nullable);
+//=================================
+
 
 @interface RCTPSPDFKitViewController : PSPDFViewController
 @end
 
-@interface RCTPSPDFKitView ()<PSPDFDocumentDelegate, PSPDFViewControllerDelegate, PSPDFFlexibleToolbarContainerDelegate>
+@interface RCTPSPDFKitView ()<PSPDFDocumentDelegate, PSPDFViewControllerDelegate, PSPDFFlexibleToolbarContainerDelegate, PSPDFAnnotationStateManagerDelegate>
 
 @property (nonatomic, nullable) UIViewController *topController;
 
@@ -35,12 +38,25 @@ typedef void (^imageRenderCompletionHandler)(UIImage *_Nullable, NSError *_Nulla
     _pdfController.annotationToolbarController.delegate = self;
     _closeButton = [[UIBarButtonItem alloc] initWithImage:[PSPDFKitGlobal imageNamed:@"x"] style:UIBarButtonItemStylePlain target:self action:@selector(closeButtonPressed:)];
     
+    // RCTAnnotationStateManagerDelegate *stateManagerDelegate = [RCTAnnotationStateManagerDelegate alloc];
+
+    //PlanTrail, we need to get notified when annotationState changes so we can update our menu buttons
+    [_pdfController.annotationStateManager addDelegate:self];
+
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(annotationChangedNotification:) name:PSPDFAnnotationChangedNotification object:nil];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(annotationChangedNotification:) name:PSPDFAnnotationsAddedNotification object:nil];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(annotationChangedNotification:) name:PSPDFAnnotationsRemovedNotification object:nil];
   }
   
   return self;
+}
+
+- (void)
+    annotationStateManager:(PSPDFAnnotationStateManager *)manager 
+    didChangeUndoState:(BOOL)undoEnabled 
+    redoState:(BOOL)redoEnabled 
+{
+  NSLog(@"Delegate called");
 }
 
 - (void)removeFromSuperview {
@@ -277,6 +293,42 @@ typedef void (^imageRenderCompletionHandler)(UIImage *_Nullable, NSError *_Nulla
   };
 }
 
+//-------------- setAnnotationState ----------------------------------------------------------
+- (void)
+    setAnnotationState:(nullable PSPDFAnnotationString)annotationString 
+    variant:(nullable PSPDFAnnotationVariantString)variantString
+  {
+  PSPDFAnnotationStateManager *annotationStateManager = self.pdfController.annotationStateManager;
+  PSPDFDocument *document = self.pdfController.document;
+  VALIDATE_DOCUMENT(document);
+
+  [annotationStateManager setState:annotationString variant:variantString];
+}
+
+- (void) setNavigationBarHidden:(BOOL)hidden {
+  [self.pdfController.navigationController setNavigationBarHidden:hidden animated:NO];
+}
+
+- (void)annotationStateManager:(nonnull PSPDFAnnotationStateManager *)manager
+                didChangeState:(nullable PSPDFAnnotationString)oldState
+                            to:(nullable PSPDFAnnotationString)newState
+                       variant:(nullable PSPDFAnnotationVariantString)oldVariant
+                            to:(nullable PSPDFAnnotationVariantString)newVariant 
+{
+  NSLog(@"Delegate called, %@, %@", oldState, newState);
+  if(self.onAnnotationManagerStateChanged) {
+
+    //Sending string to JS-side via an NSDictionary. I got it to work with stringWithFormat 
+    //There probably is a much simpler way..
+    self.onAnnotationManagerStateChanged(@{
+      @"oldState" : [NSString stringWithFormat: @"%@", oldState],
+      @"oldVariant" : [NSString stringWithFormat: @"%@", oldVariant],
+      @"newState" : [NSString stringWithFormat: @"%@", newState],
+      @"newVariant" : [NSString stringWithFormat: @"%@", newVariant],
+    });
+  }
+};
+
 //=====================================================================================================
 
 
@@ -323,9 +375,11 @@ typedef void (^imageRenderCompletionHandler)(UIImage *_Nullable, NSError *_Nulla
   return !self.disableAutomaticSaving;
 }
 
+
 - (void)pdfViewController:(PSPDFViewController *)pdfController didConfigurePageView:(PSPDFPageView *)pageView forPageAtIndex:(NSInteger)pageIndex {
   [self onStateChangedForPDFViewController:pdfController pageView:pageView pageAtIndex:pageIndex];
 }
+
 
 - (void)pdfViewController:(PSPDFViewController *)pdfController willBeginDisplayingPageView:(PSPDFPageView *)pageView forPageAtIndex:(NSInteger)pageIndex {
   [self onStateChangedForPDFViewController:pdfController pageView:pageView pageAtIndex:pageIndex];

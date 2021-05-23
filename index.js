@@ -41,6 +41,8 @@ class PSPDFKitView extends React.Component {
           onAnnotationsChanged={this._onAnnotationsChanged}
           onNavigationButtonClicked={this._onNavigationButtonClicked}
           onDataReturned={this._onDataReturned}
+          //PlanTrail
+          onAnnotationManagerStateChanged={this._onAnnotationManagerStateChanged}
         />
       );
     } else {
@@ -120,6 +122,12 @@ class PSPDFKitView extends React.Component {
     }
   };
 
+  _onAnnotationManagerStateChanged = event => {
+    if (this.props.onAnnotationManagerStateChanged) {
+      this.props.onAnnotationManagerStateChanged(event.nativeEvent);
+    }
+  };
+
   /* --------------
    * PlanTrail
    * Create a jpg in each size (original, medium, thumbnail) from a page in a pdf
@@ -177,7 +185,69 @@ class PSPDFKitView extends React.Component {
       );
     }
   };
-  /**-------------------------------------------------------------------------
+  //-------------------------------------------------------------------------
+
+  endAnnotationState = function() {
+    if (Platform.OS === 'android') {
+      throw new Error(
+        'Android not supported for this PlanTrail specific function, (extractSnippet'
+      );
+    } else if (Platform.OS === 'ios') {
+      return NativeModules.PSPDFKitViewManager.endAnnotationState(
+        findNodeHandle(this.refs.pdfView)
+      );
+    }
+  };
+
+  startHighlightAnnotationState = function() {
+    if (Platform.OS === 'android') {
+      throw new Error(
+        'Android not supported for this PlanTrail specific function, (extractSnippet'
+      );
+    } else if (Platform.OS === 'ios') {
+      return NativeModules.PSPDFKitViewManager.startHighlightAnnotationState(
+        findNodeHandle(this.refs.pdfView)
+      );
+    }
+  };
+
+  startArrowAnnotationState = function() {
+    if (Platform.OS === 'android') {
+      throw new Error(
+        'Android not supported for this PlanTrail specific function, (extractSnippet'
+      );
+    } else if (Platform.OS === 'ios') {
+      return NativeModules.PSPDFKitViewManager.startArrowAnnotationState(
+        findNodeHandle(this.refs.pdfView)
+      );
+    }
+  };
+
+  startInkAnnotationState = function() {
+    if (Platform.OS === 'android') {
+      throw new Error(
+        'Android not supported for this PlanTrail specific function, (extractSnippet'
+      );
+    } else if (Platform.OS === 'ios') {
+      return NativeModules.PSPDFKitViewManager.startInkAnnotationState(
+        findNodeHandle(this.refs.pdfView)
+      );
+    }
+  };
+
+  hideNavigationToolbar = function() {
+    if (Platform.OS === 'android') {
+      throw new Error(
+        'Android not supported for this PlanTrail specific function, (extractSnippet'
+      );
+    } else if (Platform.OS === 'ios') {
+      return NativeModules.PSPDFKitViewManager.hideNavigationToolbar(
+        findNodeHandle(this.refs.pdfView)
+      );
+    }
+  };
+
+  //===================================================================================
 
   /**
    * Enters the annotation creation mode, showing the annotation creation toolbar.
