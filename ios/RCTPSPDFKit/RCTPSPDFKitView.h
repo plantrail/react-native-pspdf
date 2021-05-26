@@ -47,7 +47,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSDictionary *) getPageSizeForPageAtIndex:(PSPDFPageIndex)pageIndex;
 
-- (void)extractImage:(NSString*)fileGuid 
+- (void)
+    extractImage:(NSString*)fileGuid 
     atPageIndex:(PSPDFPageIndex)pageIndex 
     withClipRect:(CGRect)clipRect 
     atSize:(CGFloat)maxSize 
@@ -57,10 +58,21 @@ NS_ASSUME_NONNULL_BEGIN
     rejecter:(RCTPromiseRejectBlock)reject
     error:(NSError *_Nullable *)error;
 
-- (void) setAnnotationState:(nullable PSPDFAnnotationString)annotationString 
-    variant:(nullable PSPDFAnnotationVariantString)variantString;
+- (void) 
+    setAnnotationState:(nullable PSPDFAnnotationString)annotationString 
+    variant:(nullable PSPDFAnnotationVariantString)variantString
+    drawColor:(nullable UIColor*)drawColor
+    lineWidth:(CGFloat)lineWidth;
 
-- (void) setNavigationBarHidden:(BOOL)hidden;
+- (void)setNavigationBarHidden:(BOOL)hidden;
+- (void)showOutline;
+- (void)searchForString;
+
+- (BOOL) 
+    updateCropAnnotation:(NSString*)annotationName
+    atPageIndex:(PSPDFPageIndex)pageIndex 
+    withSelectionRect:(CGRect)selectionRect;
+
 ///----------------------------------------------
 
 /// Anotations

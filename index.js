@@ -169,6 +169,21 @@ class PSPDFKitView extends React.Component {
     }
   };
 
+  updateCropAnnotation = function({annotationName, pageIndex, selectionRect}) {
+    if (Platform.OS === 'android') {
+      throw new Error(
+        'Android not supported for this PlanTrail specific function, (extractSnippet'
+      );
+    } else if (Platform.OS === 'ios') {
+      return NativeModules.PSPDFKitViewManager.updateCropAnnotation(
+        annotationName,
+        pageIndex,
+        selectionRect,
+        findNodeHandle(this.refs.pdfView)
+      );
+    }
+  };
+
   /**-------------------------------------------------------------------------
    * PlanTrail
    * Get the width of a page
@@ -244,6 +259,26 @@ class PSPDFKitView extends React.Component {
       return NativeModules.PSPDFKitViewManager.hideNavigationToolbar(
         findNodeHandle(this.refs.pdfView)
       );
+    }
+  };
+
+  showOutline = function() {
+    if (Platform.OS === 'android') {
+      throw new Error(
+        'Android not supported for this PlanTrail specific function, (extractSnippet'
+      );
+    } else if (Platform.OS === 'ios') {
+      return NativeModules.PSPDFKitViewManager.showOutline(findNodeHandle(this.refs.pdfView));
+    }
+  };
+
+  searchForString = function() {
+    if (Platform.OS === 'android') {
+      throw new Error(
+        'Android not supported for this PlanTrail specific function, (extractSnippet'
+      );
+    } else if (Platform.OS === 'ios') {
+      return NativeModules.PSPDFKitViewManager.searchForString(findNodeHandle(this.refs.pdfView));
     }
   };
 

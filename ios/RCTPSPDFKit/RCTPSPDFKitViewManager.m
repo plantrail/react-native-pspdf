@@ -237,7 +237,7 @@ RCT_REMAP_METHOD(getPageSize,
 RCT_EXPORT_METHOD(startHighlightAnnotationState:(nonnull NSNumber *)reactTag){
   dispatch_async(dispatch_get_main_queue(), ^{
     RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
-    [component setAnnotationState:PSPDFAnnotationStringHighlight variant:nil];
+    [component setAnnotationState:PSPDFAnnotationStringHighlight variant:nil drawColor:nil lineWidth:1.0];
   });
 }
 
@@ -245,14 +245,14 @@ RCT_EXPORT_METHOD(startHighlightAnnotationState:(nonnull NSNumber *)reactTag){
 RCT_EXPORT_METHOD(startArrowAnnotationState:(nonnull NSNumber *)reactTag){
   dispatch_async(dispatch_get_main_queue(), ^{
     RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
-    [component setAnnotationState:PSPDFAnnotationStringLine variant:PSPDFAnnotationVariantStringLineArrow];
+    [component setAnnotationState:PSPDFAnnotationStringLine variant:PSPDFAnnotationVariantStringLineArrow drawColor:nil lineWidth:1.0];
   });
 }
 
 RCT_EXPORT_METHOD(endAnnotationState:(nonnull NSNumber *)reactTag){
   dispatch_async(dispatch_get_main_queue(), ^{
     RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
-    [component setAnnotationState:nil variant:nil];
+    [component setAnnotationState:nil variant:nil drawColor:nil lineWidth:1.0];
   });
 } 
 
@@ -260,7 +260,7 @@ RCT_EXPORT_METHOD(endAnnotationState:(nonnull NSNumber *)reactTag){
 RCT_EXPORT_METHOD(startInkAnnotationState:(nonnull NSNumber *)reactTag){
   dispatch_async(dispatch_get_main_queue(), ^{
     RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
-    [component setAnnotationState:PSPDFAnnotationStringInk variant:PSPDFAnnotationVariantStringInkPen];
+    [component setAnnotationState:PSPDFAnnotationStringInk variant:PSPDFAnnotationVariantStringInkPen drawColor:nil lineWidth:1.0];
   });
 }
 
