@@ -20,15 +20,7 @@
 typedef void (^imageRenderCompletionHandler)(UIImage *_Nullable, NSError *_Nullable);
 //=================================
 
-
-@interface RCTPSPDFKitViewController : PSPDFViewController
-@end
-
-@interface RCTPSPDFKitView ()<PSPDFDocumentDelegate, PSPDFViewControllerDelegate, PSPDFFlexibleToolbarContainerDelegate, PSPDFAnnotationStateManagerDelegate>
-  @property (nonatomic, nullable) UIViewController *topController;
-@end
-
-// @interface PSPDFCropAnnotation : PSPDFSquareAnnotation 
+// @interface PSPDFCropAnnotation:PSPDFSquareAnnotation 
 // @end
 
 // @implementation PSPDFCropAnnotation
@@ -50,6 +42,13 @@ typedef void (^imageRenderCompletionHandler)(UIImage *_Nullable, NSError *_Nulla
 //     // }
 // @end
 
+@interface RCTPSPDFKitViewController : PSPDFViewController
+@end
+
+@interface RCTPSPDFKitView ()<PSPDFDocumentDelegate, PSPDFViewControllerDelegate, PSPDFFlexibleToolbarContainerDelegate, PSPDFAnnotationStateManagerDelegate>
+  @property (nonatomic, nullable) UIViewController *topController;
+@end
+
 @implementation RCTPSPDFKitView
 
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -59,7 +58,6 @@ typedef void (^imageRenderCompletionHandler)(UIImage *_Nullable, NSError *_Nulla
     _pdfController.annotationToolbarController.delegate = self;
     _closeButton = [[UIBarButtonItem alloc] initWithImage:[PSPDFKitGlobal imageNamed:@"x"] style:UIBarButtonItemStylePlain target:self action:@selector(closeButtonPressed:)];
     
-
     //PlanTrail, we need to get notified when annotationState changes so we can update our menu buttons
     [_pdfController.annotationStateManager addDelegate:self];
 
@@ -360,52 +358,54 @@ typedef void (^imageRenderCompletionHandler)(UIImage *_Nullable, NSError *_Nulla
     atPageIndex:(PSPDFPageIndex)pageIndex 
     withSelectionRect:(CGRect)selectionRect
 {
-  PSPDFDocument *document = self.pdfController.document;
-  VALIDATE_DOCUMENT(document, NO);
+//   PSPDFDocument *document = self.pdfController.document;
+//   VALIDATE_DOCUMENT(document, NO);
 
-NSLog(NSStringFromCGRect(selectionRect));
+// NSLog(NSStringFromCGRect(selectionRect));
 
-  PSPDFPageInfo *pageInfo = [document pageInfoForPageAtIndex:pageIndex];
+//   PSPDFPageInfo *pageInfo = [document pageInfoForPageAtIndex:pageIndex];
 
-  //Look for an existing cropRect on this page
-  NSArray <PSPDFAnnotation *> *annotations = [document annotationsForPageAtIndex:pageIndex type:PSPDFAnnotationTypeSquare];
-  PSPDFAnnotation *annotation;
+//   //Look for an existing cropRect on this page
+//   NSArray <PSPDFAnnotation *> *annotations = [document annotationsForPageAtIndex:pageIndex type:PSPDFAnnotationTypeSquare];
+//   PSPDFAnnotation *annotation;
 
-  for (PSPDFAnnotation *loopedAnnotation in annotations) {
-    if ([loopedAnnotation.name isEqualToString:annotationName]) {
-      annotation = loopedAnnotation;
-      break;
-    }
-  }
+//   for (PSPDFAnnotation *loopedAnnotation in annotations) {
+//     if ([loopedAnnotation isKindOfClass:[PSPDFCropAnnotation class]]) {
+// //    if ([loopedAnnotation.name isEqualToString:annotationName]) {
+//       annotation = loopedAnnotation;
+//       break;
+//     }
+//   }
 
-  //If no selection exists, the selectionRect will be CGRectZero. The remaining cropAnnotation should be removed
-  if(CGRectIsEmpty(selectionRect)) {
-    if(annotation) {
-      //TODO: remove existing annotation
-    }
-    return YES;
-  }
+//   //If no selection exists, the selectionRect will be CGRectZero. The remaining cropAnnotation should be removed
+//   if(CGRectIsEmpty(selectionRect)) {
+//     if(annotation) {
+//       //TODO: remove existing annotation
+//     }
+//     return YES;
+//   }
 
-  CGRect newBoundingBox = selectionRect;
-  if(!annotation) {
-    annotation = [[PSPDFCropAnnotation alloc] init];
-    annotation.name = annotationName;
-    annotation.borderStyle = PSPDFAnnotationBorderStyleDashed;
-    annotation.lineWidth = 2;
-    annotation.dashArray = @[@3,@3];
-  } else {  
-    if(annotation.boundingBox.origin.y < selectionRect.origin.y) {
-      newBoundingBox.origin.y = selectionRect.origin.y;
-    }
+//   CGRect newBoundingBox = selectionRect;
+//   if(!annotation) {
+//     annotation = [[PSPDFCropAnnotation alloc] init];
+//     annotation.name = annotationName;
+//     annotation.borderStyle = PSPDFAnnotationBorderStyleDashed;
+//     annotation.lineWidth = 2;
+//     annotation.dashArray = @[@3,@3];
+//   } else {  
+//     if(annotation.boundingBox.origin.y < selectionRect.origin.y) {
+//       newBoundingBox.origin.y = selectionRect.origin.y;
+//     }
 
-    if(annotation.boundingBox.size.height < selectionRect.size.height) {
-      newBoundingBox.size.height = selectionRect.size.height;
-    }
-  }
-  annotation.boundingBox = newBoundingBox;
-  NSLog(NSStringFromCGRect(newBoundingBox));
+//     if(annotation.boundingBox.size.height < selectionRect.size.height) {
+//       newBoundingBox.size.height = selectionRect.size.height;
+//     }
+//   }
+//   annotation.boundingBox = newBoundingBox;
+//   NSLog(NSStringFromCGRect(newBoundingBox));
 
-  return [document addAnnotations:@[annotation] options:nil];
+//   return [document addAnnotations:@[annotation] options:nil];
+return YES;
 }
 
 //-------------- updateCropAnnotation2 ----------------------------------------------------------
@@ -420,65 +420,80 @@ NSLog(NSStringFromCGRect(selectionRect));
   PSPDFPageIndex *pageIndex = firstAnnotation.pageIndex;
   PSPDFPageInfo *pageInfo = [document pageInfoForPageAtIndex:pageIndex];
 
+  PSPDFAnnotation *cropAnnotation;
+
   NSString *cropAnnotationName = [NSString stringWithFormat:@"PLANTRAIL_CROP_ANNOTATION_%i", pageIndex];
 
-  for (PSPDFAnnotation *loopedAnnotation in annotations) {
-    if ([loopedAnnotation.name isEqualToString:cropAnnotationName]) {
-      //If this function is triggered by creation/modification of a cropAnnotation we need to bail out
-      //so we don't end up in an infinite trigger-loop
-      return NO;
+  //If only one annotation exists in the triggering annotation array and if this is our cropAnnotation, we need to bail out
+  if([annotations count] == 1) {
+    for (PSPDFAnnotation *loopedAnnotation in annotations) {
+      if ([loopedAnnotation.name isEqualToString:cropAnnotationName ]) {
+        NSLog(@"Altered the cropAnnotation");
+        //If this function is triggered by creation/modification of a cropAnnotation we need to bail out
+        //so we don't end up in an infinite trigger-loop
+        cropAnnotation = loopedAnnotation;
+
+        //But first, make sure we havent intruded on the last calculated shapesBoundingBox
+        if(cropAnnotation.customData) {
+          CGRect lastShapesBoundingBox = CGRectFromString(cropAnnotation.customData[@"shapesBoundingBox"]);
+          NSLog(NSStringFromCGRect(lastShapesBoundingBox));
+          cropAnnotation.boundingBox = CGRectUnion(cropAnnotation.boundingBox, lastShapesBoundingBox);
+        };
+
+        return YES;
+      }
     }
   }
 
-  //We wont go through the trouble of identifying the boundingBox impact due to this very change
+  //We won't go through the trouble of identifying impact on the boundingbox from to this very change
   //Instead we recalculate the complete boundingbox for this page
   NSArray <PSPDFAnnotation *> *allAnnotations = [document annotationsForPageAtIndex:pageIndex type:PSPDFAnnotationTypeAll];
-  CGRect shapesBoundingBox; // = CGRectZero;
-  PSPDFAnnotation *cropAnnotation;
-  BOOL isFirstBoundingBox = true;
+  CGRect shapesBoundingBox = CGRectZero;
+
   for (PSPDFAnnotation *loopedAnnotation in allAnnotations) {
-    if ([loopedAnnotation.name isEqualToString:cropAnnotationName]) {
+      if ([loopedAnnotation.name isEqualToString:cropAnnotationName ]) {
       //This is our cropAnnotation
       cropAnnotation = loopedAnnotation;
     } else {
       //This is all our annotations we want to calculate our shapesBoundingBox from
-      if(isFirstBoundingBox) {
-        shapesBoundingBox = loopedAnnotation.boundingBox;
-        isFirstBoundingBox = false;
+
+      //Higlight annotations has a rects-array with all selection rects. We need to use those rects instead of 
+      //the annotation's boundingBox, since PSPDF adds a margin to boundingBox which we don't want
+      if ([loopedAnnotation isKindOfClass:[PSPDFHighlightAnnotation class]]) {
+        for (NSValue *rect in loopedAnnotation.rects) {
+          shapesBoundingBox = CGRectIsEmpty(shapesBoundingBox) ? [rect CGRectValue] : CGRectUnion(shapesBoundingBox, [rect CGRectValue]);
+        }
       } else {
-        shapesBoundingBox = CGRectUnion(shapesBoundingBox, loopedAnnotation.boundingBox);
+        shapesBoundingBox = CGRectIsEmpty(shapesBoundingBox) ? loopedAnnotation.boundingBox : CGRectUnion(shapesBoundingBox, loopedAnnotation.boundingBox);
       }
     }
   }
 
   //If no selection exists, the selectionRect will be CGRectZero. The remaining cropAnnotation should be removed
-  if(CGRectIsEmpty(shapesBoundingBox)) {
-    if(cropAnnotation) {
-      //TODO: remove existing annotation
-    }
-    return YES;
-  }
+  // if(CGRectIsEmpty(shapesBoundingBox)) {
+  //   if(cropAnnotation) {
+  //     //TODO: remove existing annotation
+  //   }
+  //   return YES;
+  // }
 
-  CGRect newBoundingBox;
+  CGRect minBoundingBox = CGRectMake(0, shapesBoundingBox.origin.y, pageInfo.size.width, shapesBoundingBox.size.height);
   if(!cropAnnotation) {
     cropAnnotation = [[PSPDFSquareAnnotation alloc] init];
+    cropAnnotation.pageIndex = pageIndex;
     cropAnnotation.name = cropAnnotationName;
+    cropAnnotation.boundingBox = minBoundingBox;
     cropAnnotation.borderStyle = PSPDFAnnotationBorderStyleDashed;
-    cropAnnotation.lineWidth = 2;
+    cropAnnotation.lineWidth = 1;
     cropAnnotation.dashArray = @[@3,@3];
-  } else {  
-    if(cropAnnotation.boundingBox.origin.y < shapesBoundingBox.origin.y) {
-      newBoundingBox.origin.y = shapesBoundingBox.origin.y;
-    }
 
-    if(cropAnnotation.boundingBox.size.height < shapesBoundingBox.size.height) {
-      newBoundingBox.size.height = shapesBoundingBox.size.height;
-    }
+  } else {
+    cropAnnotation.boundingBox = CGRectUnion(cropAnnotation.boundingBox, minBoundingBox);
   }
-  newBoundingBox.origin.x = 0;
-  newBoundingBox.size.width = pageInfo.size.width;
-  cropAnnotation.boundingBox = newBoundingBox;
-  NSLog(NSStringFromCGRect(newBoundingBox));
+
+  //Store the last calculated shapesBoundingBox so we can test it if cropAnnotation is modified (i.e about 50 lines above)
+  NSDictionary *customData = @{@"shapesBoundingBox": NSStringFromCGRect(minBoundingBox)};
+  cropAnnotation.customData = customData;
 
   return [document addAnnotations:@[cropAnnotation] options:nil];
 }
@@ -514,20 +529,36 @@ NSLog(NSStringFromCGRect(selectionRect));
     inRect:(CGRect)annotationRect 
     onPageView:(PSPDFPageView *)pageView 
 {
-  // BOOL internalAnnotation = NO;
-  // for (PSPDFAnnotation *annotation in annotations) {
-  //   if ([annotation.user isEqualToString:@"PlanTrail Internal"]) {
-  //     internalAnnotation = YES;
-  //   }
-  // }
+  
+  BOOL isCropAnnotation = NO;
+  for (PSPDFAnnotation *annotation in annotations) {
+    if ([annotation isKindOfClass:[PSPDFCropAnnotation class]]) {
+      isCropAnnotation = YES;
+    }
+  }
 
     // Only show Remove-menu
     return [menuItems filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(PSPDFMenuItem *menuItem, NSDictionary *bindings) {
         NSLog(@"%@", menuItem.identifier);
 
-        return [menuItem.identifier isEqualToString:PSPDFAnnotationMenuRemove]; // && !internalAnnotation;
+        return [menuItem.identifier isEqualToString:PSPDFAnnotationMenuRemove] && !isCropAnnotation;
     }]];
 }
+
+
+- (nullable UIView<PSPDFAnnotationPresenting> *)
+    pdfViewController:(nonnull PSPDFViewController *)pdfController
+    annotationView:(nullable UIView<PSPDFAnnotationPresenting> *)annotationView
+    forAnnotation:(nonnull PSPDFAnnotation *)annotation
+    onPageView:(nonnull PSPDFPageView *)pageView
+{
+  if([annotation isKindOfClass:[PSPDFCropLineAnnotation class]]) {
+    return annotationView;
+  } else {
+    return annotationView;
+  }
+}
+
 //=====================================================================================================
 
 
