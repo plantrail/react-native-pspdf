@@ -154,6 +154,10 @@ RCT_CUSTOM_VIEW_PROPERTY(showDownloadableFonts, BOOL, RCTPSPDFKitView) {
 //==========================================================================
 //======- PlanTrail ========================================================
 RCT_EXPORT_VIEW_PROPERTY(onAnnotationManagerStateChanged, RCTBubblingEventBlock)
+RCT_EXPORT_VIEW_PROPERTY(onClipAnnotationStateChanged, RCTBubblingEventBlock)
+RCT_EXPORT_VIEW_PROPERTY(documentMargins, NSDictionary);
+RCT_EXPORT_VIEW_PROPERTY(isAutomaticClipRect, BOOL);
+RCT_EXPORT_VIEW_PROPERTY(snippetCount, NSInteger);
 
 - (CGRect)cgRectFromNSDictionary:(NSDictionary*)inputClipRect {
   if (inputClipRect == nil) {
@@ -180,14 +184,36 @@ RCT_EXPORT_VIEW_PROPERTY(onAnnotationManagerStateChanged, RCTBubblingEventBlock)
   }
 }
 
+// RCT_EXPORT_METHOD(
+//   extractSnippet:(nonnull NSNumber *)reactTag 
+//   resolver:(RCTPromiseResolveBlock)resolve 
+//   rejecter:(RCTPromiseRejectBlock)reject) 
+// {
+//   dispatch_async(dispatch_get_main_queue(), ^{
+//     RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
+//     NSError *error;
+
+//     NSDictionary *annotations = [component getAnnotations:(PSPDFPageIndex)pageIndex.integerValue type:[RCTConvert annotationTypeFromInstantJSONType:type] error:&error];
+//     if (snippets) {
+//       resolve(snippets);
+//     } else {
+//       reject(@"error", @"Failed to extract snippets.", error);
+//     }
+//   });
+// }
+
+
 //------------------------------------- extractImage -------------------------------------------
 RCT_REMAP_METHOD(extractImage,
     extractImage:(NSString*)fileGuid
     atPageIndex:(nonnull NSNumber *)pageIndex 
-    withClipRect:(NSDictionary *)inputClipRect
+    withPdfClipRect:(NSDictionary *)inputPdfClipRect
     atSize:(nonnull NSNumber *)maxSize
     withResolution:(nonnull NSNumber *)resolution //if resolution is given, size will be omitted 
     asFileType:(NSString*)fileType
+    includeArrows:(BOOL)includeArrows
+    includeInk:(BOOL)includeInk
+    includeHighlights:(BOOL)includeHighlights
     reactTag:(nonnull NSNumber *)reactTag 
     resolver:(RCTPromiseResolveBlock)resolve 
     rejecter:(RCTPromiseRejectBlock)reject
@@ -195,15 +221,18 @@ RCT_REMAP_METHOD(extractImage,
   dispatch_async(dispatch_get_main_queue(), ^{
     RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
     NSError *error;
-    CGRect clipRect = [self cgRectFromNSDictionary:inputClipRect]; //CGRectZero;
+    CGRect pdfClipRect = [self cgRectFromNSDictionary:inputPdfClipRect]; //CGRectZero;
 
     [component 
       extractImage:fileGuid
       atPageIndex:(PSPDFPageIndex)pageIndex.integerValue  
-      withClipRect:clipRect 
+      withPdfClipRect:pdfClipRect 
       atSize:[maxSize doubleValue]
       withResolution:[resolution doubleValue] //if resolution is given, size will be omitted 
       asFileType:fileType
+      includeArrows:includeArrows
+      includeInk:includeInk
+      includeHighlights:includeHighlights
       resolver:resolve
       rejecter:reject
       error:&error 
@@ -237,7 +266,12 @@ RCT_REMAP_METHOD(getPageSize,
 RCT_EXPORT_METHOD(startHighlightAnnotationState:(nonnull NSNumber *)reactTag){
   dispatch_async(dispatch_get_main_queue(), ^{
     RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
-    [component setAnnotationState:PSPDFAnnotationStringHighlight variant:nil drawColor:nil lineWidth:1.0];
+    [component 
+      setAnnotationState:PSPDFAnnotationStringHighlight 
+      variant:nil 
+      drawColor:nil 
+      lineWidth:1.0
+    ];
   });
 }
 
@@ -245,22 +279,37 @@ RCT_EXPORT_METHOD(startHighlightAnnotationState:(nonnull NSNumber *)reactTag){
 RCT_EXPORT_METHOD(startArrowAnnotationState:(nonnull NSNumber *)reactTag){
   dispatch_async(dispatch_get_main_queue(), ^{
     RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
-    [component setAnnotationState:PSPDFAnnotationStringLine variant:PSPDFAnnotationVariantStringLineArrow drawColor:nil lineWidth:1.0];
+    [component 
+      setAnnotationState:PSPDFAnnotationStringLine 
+      variant:PSPDFAnnotationVariantStringLineArrow 
+      drawColor:[UIColor colorWithRed: 0.01 green: 0.31 blue: 0.64 alpha: 1.00] 
+      lineWidth: 3.0
+    ];
   });
 }
 
 RCT_EXPORT_METHOD(endAnnotationState:(nonnull NSNumber *)reactTag){
   dispatch_async(dispatch_get_main_queue(), ^{
     RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
-    [component setAnnotationState:nil variant:nil drawColor:nil lineWidth:1.0];
+    [component 
+      setAnnotationState:nil 
+      variant:nil 
+      drawColor:nil 
+      lineWidth:1.0
+    ];
   });
 } 
 
-//------------------------------------- startArrowAnnotation -------------------------------------------
+//------------------------------------- startInkAnnotation -------------------------------------------
 RCT_EXPORT_METHOD(startInkAnnotationState:(nonnull NSNumber *)reactTag){
   dispatch_async(dispatch_get_main_queue(), ^{
     RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
-    [component setAnnotationState:PSPDFAnnotationStringInk variant:PSPDFAnnotationVariantStringInkPen drawColor:nil lineWidth:1.0];
+    [component 
+      setAnnotationState:PSPDFAnnotationStringInk 
+      variant:PSPDFAnnotationVariantStringInkPen 
+      drawColor:[UIColor colorWithRed: 0.01 green: 0.31 blue: 0.64 alpha: 1.00] 
+      lineWidth: 3.0
+    ];
   });
 }
 
@@ -268,6 +317,39 @@ RCT_EXPORT_METHOD(hideNavigationToolbar:(nonnull NSNumber *)reactTag){
   dispatch_async(dispatch_get_main_queue(), ^{
     RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
     [component setNavigationBarHidden:true];
+  });
+}
+
+//------------------------------------- showOutline -------------------------------------------
+RCT_EXPORT_METHOD(showOutline:(nonnull NSNumber *)reactTag){
+  dispatch_async(dispatch_get_main_queue(), ^{
+    RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
+    [component showOutline];
+  });
+}
+
+//------------------------------------- searchForString -------------------------------------------
+RCT_EXPORT_METHOD(searchForString:(nonnull NSNumber *)reactTag){
+  dispatch_async(dispatch_get_main_queue(), ^{
+    RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
+    [component searchForString];
+  });
+}
+
+RCT_REMAP_METHOD(getClipAnnotations, 
+  reactTag:(nonnull NSNumber *)reactTag 
+  resolver:(RCTPromiseResolveBlock)resolve 
+  rejecter:(RCTPromiseRejectBlock)reject) 
+{
+  dispatch_async(dispatch_get_main_queue(), ^{
+    RCTPSPDFKitView *component = (RCTPSPDFKitView *)[self.bridge.uiManager viewForReactTag:reactTag];
+    NSError *error;
+    NSDictionary *clipAnnotations = [component getClipAnnotations];
+    if (clipAnnotations) {
+      resolve(clipAnnotations);
+    } else {
+      reject(@"error", @"Failed to get clipAnnotations.", nil);
+    }
   });
 }
 

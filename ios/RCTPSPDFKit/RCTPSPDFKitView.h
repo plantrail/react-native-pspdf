@@ -44,16 +44,23 @@ NS_ASSUME_NONNULL_BEGIN
 
 ///PlanTrail -------------------------------------
 @property (nonatomic, copy) RCTBubblingEventBlock onAnnotationManagerStateChanged;
+@property (nonatomic, copy) RCTBubblingEventBlock onClipAnnotationStateChanged;
+@property (nonatomic) NSDictionary *documentMargins;
+@property (nonatomic) BOOL isAutomaticClipRect;
+@property (nonatomic) NSInteger snippetCount;
 
 - (NSDictionary *) getPageSizeForPageAtIndex:(PSPDFPageIndex)pageIndex;
 
-- (void)
+- (NSDictionary<NSString *, NSArray<NSDictionary *> *> *)
     extractImage:(NSString*)fileGuid 
     atPageIndex:(PSPDFPageIndex)pageIndex 
-    withClipRect:(CGRect)clipRect 
+    withPdfClipRect:(CGRect)pdfClipRect 
     atSize:(CGFloat)maxSize 
     withResolution:(CGFloat)resolution
     asFileType:(NSString*)fileType
+    includeArrows:(BOOL)includeArrows
+    includeInk:(BOOL)includeInk
+    includeHighlights:(BOOL)includeHighlights
     resolver:(RCTPromiseResolveBlock)resolve 
     rejecter:(RCTPromiseRejectBlock)reject
     error:(NSError *_Nullable *)error;
@@ -68,10 +75,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)showOutline;
 - (void)searchForString;
 
-- (BOOL) 
-    updateCropAnnotation:(NSString*)annotationName
-    atPageIndex:(PSPDFPageIndex)pageIndex 
-    withSelectionRect:(CGRect)selectionRect;
+- (NSDictionary<NSString *, NSArray<NSDictionary *> *> *)getClipAnnotations;
 
 ///----------------------------------------------
 

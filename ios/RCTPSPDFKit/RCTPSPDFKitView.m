@@ -12,40 +12,25 @@
 #import "RCTConvert+PSPDFAnnotation.h"
 #import "RCTConvert+PSPDFViewMode.h"
 #import "RCTConvert+UIBarButtonItem.h"
-#import "CropAnnotation.h"
+//#import "ClipAnnotation.h"
 
 #define VALIDATE_DOCUMENT(document, ...) { if (!document.isValid) { NSLog(@"Document is invalid."); if (self.onDocumentLoadFailed) { self.onDocumentLoadFailed(@{@"error": @"Document is invalid."}); } return __VA_ARGS__; }}
 
 //======== PlanTrail ==============
 typedef void (^imageRenderCompletionHandler)(UIImage *_Nullable, NSError *_Nullable);
+NSString *clipAnnotationName = @"PLANTRAIL_CLIP_ANNOTATION";
 //=================================
-
-// @interface PSPDFCropAnnotation:PSPDFSquareAnnotation 
-// @end
-
-// @implementation PSPDFCropAnnotation
-//     - (instancetype)init {
-//         if ((self = [super init])) {
-
-//         }
-//         return self;
-//     }
-
-//     // override func setBoundingBox(_ boundingBox: CGRect, transform: Bool, includeOptional optionalProperties: Bool) {
-//     //     var newBoundingBox = boundingBox
-//     //     if shouldConstrainVerticalMovement {
-//     //         let center = CGPoint(x: self.boundingBox.midX, y: self.boundingBox.midY)
-//     //         let newOrigin = CGPoint(x: center.x - boundingBox.width / 2, y: center.y - boundingBox.height / 2)
-//     //         newBoundingBox = CGRect(x: newOrigin.x, y: boundingBox.origin.y, width: boundingBox.size.width, height: boundingBox.size.height)
-//     //     }
-//     //     super.setBoundingBox(newBoundingBox, transform: transform, includeOptional: optionalProperties)
-//     // }
-// @end
 
 @interface RCTPSPDFKitViewController : PSPDFViewController
 @end
 
-@interface RCTPSPDFKitView ()<PSPDFDocumentDelegate, PSPDFViewControllerDelegate, PSPDFFlexibleToolbarContainerDelegate, PSPDFAnnotationStateManagerDelegate>
+@interface RCTPSPDFKitView ()<
+    PSPDFDocumentDelegate, 
+    PSPDFViewControllerDelegate, 
+    PSPDFFlexibleToolbarContainerDelegate, 
+    PSPDFAnnotationStateManagerDelegate,
+    PSPDFDocumentViewControllerDelegate
+  >
   @property (nonatomic, nullable) UIViewController *topController;
 @end
 
@@ -60,7 +45,9 @@ typedef void (^imageRenderCompletionHandler)(UIImage *_Nullable, NSError *_Nulla
     
     //PlanTrail, we need to get notified when annotationState changes so we can update our menu buttons
     [_pdfController.annotationStateManager addDelegate:self];
-
+    _pdfController.documentViewController.delegate = self;
+    _isAutomaticClipRect = YES;
+    
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(annotationChangedNotification:) name:PSPDFAnnotationChangedNotification object:nil];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(annotationChangedNotification:) name:PSPDFAnnotationsAddedNotification object:nil];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(annotationChangedNotification:) name:PSPDFAnnotationsRemovedNotification object:nil];
@@ -149,6 +136,16 @@ typedef void (^imageRenderCompletionHandler)(UIImage *_Nullable, NSError *_Nulla
 
 
 //====================== PlanTrail ===========================================================
+
+- (void)
+    documentViewController:(PSPDFDocumentViewController *)documentViewController 
+    didChangeContinuousSpreadIndex:(CGFloat)oldContinuousSpreadIndex {
+
+    NSLog(@"spredaIndex %f", oldContinuousSpreadIndex);
+}
+
+
+
 //-------------- sizeFromSize ----------------------------------------------------------
 - (CGSize)
     sizeFromSize:(CGSize)size 
@@ -174,6 +171,39 @@ typedef void (^imageRenderCompletionHandler)(UIImage *_Nullable, NSError *_Nulla
     [image drawInRect:CGRectMake(0, 0, newCGSize.width, newCGSize.height)];
     UIImage *newImage = UIGraphicsGetImageFromCurrentImageContext();    
     UIGraphicsEndImageContext();
+    return newImage;
+}
+
+//-------------- mergeImage ----------------------------------------------------------
+- (UIImage*)mergeImage:(UIImage*)first withImage:(UIImage*)second
+{
+    // get size of the first image
+    CGImageRef firstImageRef = first.CGImage;
+    CGFloat firstWidth = CGImageGetWidth(firstImageRef);
+    CGFloat firstHeight = CGImageGetHeight(firstImageRef);
+
+    // get size of the second image
+    CGImageRef secondImageRef = second.CGImage;
+    CGFloat secondWidth = CGImageGetWidth(secondImageRef);
+    CGFloat secondHeight = CGImageGetHeight(secondImageRef);
+
+    // build merged size
+    CGSize mergedSize = CGSizeMake(MAX(firstWidth, secondWidth), firstHeight + secondHeight);
+
+    // capture image context ref
+    UIGraphicsBeginImageContext(mergedSize);
+
+    //Draw images onto the context
+    [first drawInRect:CGRectMake(0, 0, firstWidth, firstHeight)];
+    [second drawInRect:CGRectMake(0, firstHeight, secondWidth, secondHeight)];
+//    [second drawInRect:CGRectMake(firstWidth, 0, secondWidth, secondHeight) blendMode:kCGBlendModeNormal alpha:1.0];
+
+    // assign context to new UIImage
+    UIImage *newImage = UIGraphicsGetImageFromCurrentImageContext();
+
+    // end context
+    UIGraphicsEndImageContext();
+
     return newImage;
 }
 
@@ -210,10 +240,13 @@ typedef void (^imageRenderCompletionHandler)(UIImage *_Nullable, NSError *_Nulla
 - (void)
     extractImage:(NSString*)fileGuid 
     atPageIndex:(PSPDFPageIndex)pageIndex 
-    withClipRect:(CGRect)clipRect 
+    withPdfClipRect:(CGRect)pdfClipRect 
     atSize:(CGFloat)maxSize 
     withResolution:(CGFloat)resolution //if resolution is given, size will be omitted 
     asFileType:(NSString *)fileType //"jpg" or "png"
+    includeArrows:(BOOL)includeArrows
+    includeInk:(BOOL)includeInk
+    includeHighlights:(BOOL)includeHighlights
     resolver:(RCTPromiseResolveBlock)resolve
     rejecter:(RCTPromiseRejectBlock)reject
     error:(NSError *_Nullable *)error 
@@ -223,33 +256,33 @@ typedef void (^imageRenderCompletionHandler)(UIImage *_Nullable, NSError *_Nulla
 
   PSPDFPageInfo *pageInfo = [document pageInfoForPageAtIndex:pageIndex];
 
-  if(CGRectIsEmpty(clipRect)) {
-    //If no clipRect is provided we will extract the whole page
-    clipRect = CGRectMake(0,0,pageInfo.size.width, pageInfo.size.height);
-  } else {
-    //Use the lower y (y2) and flip it from ViewCoordinates to PdfCoordinates
-    clipRect.origin.y = pageInfo.size.height - (clipRect.origin.y + clipRect.size.height);
+  if(CGRectIsEmpty(pdfClipRect)) {
+    //If no pdfClipRect is provided we will extract the whole page
+    pdfClipRect = CGRectMake(0,0,pageInfo.size.width, pageInfo.size.height);
   }
 
   CGSize extractedImageSize;
   if(resolution > 0) {
     //72 dpi is default for PDFs
     CGFloat scaleFactor = resolution / 72.0;
-    CGSize baseSize = (CGRectIsEmpty(clipRect)) ? pageInfo.size : clipRect.size;
+    CGSize baseSize = (CGRectIsEmpty(pdfClipRect)) ? pageInfo.size : pdfClipRect.size;
     extractedImageSize = CGSizeMake(baseSize.width * scaleFactor, baseSize.height * scaleFactor);
   } else {
     extractedImageSize = CGSizeMake(maxSize, maxSize);
   }
 
-  //Get all annotations of type Highlight, for specifying which annotations should be rendered to the image
-  PSPDFAnnotationType *type = PSPDFAnnotationTypeHighlight;
-  NSArray <PSPDFAnnotation *> *annotations = [document annotationsForPageAtIndex:pageIndex type:type];
+  PSPDFAnnotationType annotationTypes = 
+    (includeHighlights ? PSPDFAnnotationTypeHighlight : PSPDFAnnotationTypeNone) | 
+    (includeArrows ? PSPDFAnnotationTypeLine : PSPDFAnnotationTypeNone ) | 
+    (includeInk ? PSPDFAnnotationTypeInk : PSPDFAnnotationTypeNone);
+
+  NSArray <PSPDFAnnotation *> *annotations = [document annotationsForPageAtIndex:pageIndex type:annotationTypes];
 
   PSPDFMutableRenderRequest *request = [[PSPDFMutableRenderRequest alloc] initWithDocument:document];
   request.pageIndex = pageIndex;
   request.imageScale = 1.0;
   request.imageSize = extractedImageSize;
-  request.pdfRect = clipRect;
+  request.pdfRect = pdfClipRect;
   request.annotations = annotations;
   request.cachePolicy = PSPDFRenderRequestCachePolicyReloadIgnoringCacheData;
 
@@ -280,7 +313,10 @@ typedef void (^imageRenderCompletionHandler)(UIImage *_Nullable, NSError *_Nulla
     }
 
     if(success) {
-      resolve(@(success));
+      resolve(@{
+        @"width": [NSNumber numberWithFloat:extractedImageSize.width],
+        @"height": [NSNumber numberWithFloat:extractedImageSize.height]
+      });
     } else {
       reject(@"Error", @"extractImage::saveImage failed", nil);
     }
@@ -352,97 +388,115 @@ typedef void (^imageRenderCompletionHandler)(UIImage *_Nullable, NSError *_Nulla
    [self.pdfController searchForString:nil options:nil sender:self animated:YES];
 }
 
-//-------------- updateCropAnnotation ----------------------------------------------------------
-- (BOOL) 
-    updateCropAnnotation:annotationName
-    atPageIndex:(PSPDFPageIndex)pageIndex 
-    withSelectionRect:(CGRect)selectionRect
+//----------Adjust clipAnnotationMargins on all pages------------------------
+- (void) 
+    adjustClipAnnotationAtAllPages
 {
-//   PSPDFDocument *document = self.pdfController.document;
-//   VALIDATE_DOCUMENT(document, NO);
+  PSPDFDocument *document = self.pdfController.document;
+  VALIDATE_DOCUMENT(document);
+  PSPDFDocumentProvider *documentProvider = document.documentProviders.firstObject;
+  PSPDFAnnotationManager *annotationManager = documentProvider.annotationManager;
 
-// NSLog(NSStringFromCGRect(selectionRect));
+  NSArray<PSPDFAnnotation *> *allAnnotations = [[document allAnnotationsOfType:PSPDFAnnotationTypeAll].allValues valueForKeyPath:@"@unionOfArrays.self"];
+  NSMutableArray *updatedClipAnnotations = [NSMutableArray array];
 
-//   PSPDFPageInfo *pageInfo = [document pageInfoForPageAtIndex:pageIndex];
+  for (PSPDFAnnotation *annotation in allAnnotations) {
+    NSLog(@"Checking annotation: %@ at page %d", annotation.name, annotation.pageIndex);
+    if ([annotation.name isEqualToString:clipAnnotationName ]) {
+      NSInteger pageIndex = annotation.pageIndex;
+      PSPDFPageInfo *pageInfo = [document pageInfoForPageAtIndex:pageIndex];
 
-//   //Look for an existing cropRect on this page
-//   NSArray <PSPDFAnnotation *> *annotations = [document annotationsForPageAtIndex:pageIndex type:PSPDFAnnotationTypeSquare];
-//   PSPDFAnnotation *annotation;
+        [self adjustClipAnnotationMargins:annotation pageSize:pageInfo.size];
+        [updatedClipAnnotations addObject:annotation];
+    }
+  }
 
-//   for (PSPDFAnnotation *loopedAnnotation in annotations) {
-//     if ([loopedAnnotation isKindOfClass:[PSPDFCropAnnotation class]]) {
-// //    if ([loopedAnnotation.name isEqualToString:annotationName]) {
-//       annotation = loopedAnnotation;
-//       break;
-//     }
-//   }
-
-//   //If no selection exists, the selectionRect will be CGRectZero. The remaining cropAnnotation should be removed
-//   if(CGRectIsEmpty(selectionRect)) {
-//     if(annotation) {
-//       //TODO: remove existing annotation
-//     }
-//     return YES;
-//   }
-
-//   CGRect newBoundingBox = selectionRect;
-//   if(!annotation) {
-//     annotation = [[PSPDFCropAnnotation alloc] init];
-//     annotation.name = annotationName;
-//     annotation.borderStyle = PSPDFAnnotationBorderStyleDashed;
-//     annotation.lineWidth = 2;
-//     annotation.dashArray = @[@3,@3];
-//   } else {  
-//     if(annotation.boundingBox.origin.y < selectionRect.origin.y) {
-//       newBoundingBox.origin.y = selectionRect.origin.y;
-//     }
-
-//     if(annotation.boundingBox.size.height < selectionRect.size.height) {
-//       newBoundingBox.size.height = selectionRect.size.height;
-//     }
-//   }
-//   annotation.boundingBox = newBoundingBox;
-//   NSLog(NSStringFromCGRect(newBoundingBox));
-
-//   return [document addAnnotations:@[annotation] options:nil];
-return YES;
+  if([updatedClipAnnotations count] > 0) {
+    [annotationManager updateAnnotations:updatedClipAnnotations animated:YES];
+  }             
 }
 
-//-------------- updateCropAnnotation2 ----------------------------------------------------------
+
+//-------------- adjustClipAnnotationMargins ----------------------------------------------------------
 - (BOOL) 
-    updateCropAnnotation2:annotations
+    adjustClipAnnotationMargins:(PSPDFAnnotation*)clipAnnotation
+    pageSize:(CGSize)pageSize
+{
+  //But first, make sure the user hasn't shrunk the clipAnnotation so it no longer containg our highlights etc.
+  if(clipAnnotation.customData && self.isAutomaticClipRect) {
+    CGRect lastShapesBoundingBox = CGRectFromString(clipAnnotation.customData[@"shapesBoundingBox"]);
+    clipAnnotation.boundingBox = CGRectUnion(clipAnnotation.boundingBox, lastShapesBoundingBox);
+  };
+
+  //Also adjust for top/bottom margin 
+  //This helps the user to understand that header/footer is not clipable and also prohibits resize-knobs to 
+  //be hidden outside of the page
+  CGFloat topMargin = 0;
+  CGFloat bottomMargin = 0;
+  CGFloat leftMargin = 0;
+  CGFloat rightMargin = 0;
+
+  if(self.isAutomaticClipRect) {
+    topMargin = self.documentMargins ? [self.documentMargins[@"top"] floatValue] : 0.0;
+    bottomMargin = self.documentMargins ? [self.documentMargins[@"bottom"] floatValue] : 0.0;
+    leftMargin = self.documentMargins ? [self.documentMargins[@"left"] floatValue] - 1 : 0.0;
+    rightMargin = self.documentMargins ? [self.documentMargins[@"right"] floatValue] - 1 : 0.0;
+  }
+
+  CGRect clipableRectWithoutTopBottomMargins = CGRectMake(
+      leftMargin, 
+      bottomMargin, 
+      pageSize.width - leftMargin - rightMargin, 
+      pageSize.height - topMargin - bottomMargin
+  );
+
+  if(!self.isAutomaticClipRect) {
+    //The original clipRect, but with full page width.
+    clipAnnotation.boundingBox = CGRectMake(
+        0, 
+        clipAnnotation.boundingBox.origin.y, 
+        pageSize.width, 
+        clipAnnotation.boundingBox.size.height
+    );
+  }
+
+  clipAnnotation.boundingBox = CGRectIntersection(clipAnnotation.boundingBox, clipableRectWithoutTopBottomMargins);
+  return YES;
+}
+
+
+//-------------- updateClipAnnotation ----------------------------------------------------------
+- (BOOL) 
+    updateClipAnnotation:annotations
 {
   PSPDFDocument *document = self.pdfController.document;
   VALIDATE_DOCUMENT(document, NO);
+  PSPDFDocumentProvider *documentProvider = document.documentProviders.firstObject;
+  PSPDFAnnotationManager *annotationManager = documentProvider.annotationManager;
 
   //An onAnnotationChanged will not include annotations on different pages, hence we can take pageIndex from the first object
   PSPDFAnnotation *firstAnnotation = [annotations firstObject];
-  PSPDFPageIndex *pageIndex = firstAnnotation.pageIndex;
+  NSInteger pageIndex = firstAnnotation.pageIndex;
   PSPDFPageInfo *pageInfo = [document pageInfoForPageAtIndex:pageIndex];
+  PSPDFAnnotation *clipAnnotation;
 
-  PSPDFAnnotation *cropAnnotation;
-
-  NSString *cropAnnotationName = [NSString stringWithFormat:@"PLANTRAIL_CROP_ANNOTATION_%i", pageIndex];
-
-  //If only one annotation exists in the triggering annotation array and if this is our cropAnnotation, we need to bail out
-  if([annotations count] == 1) {
-    for (PSPDFAnnotation *loopedAnnotation in annotations) {
-      if ([loopedAnnotation.name isEqualToString:cropAnnotationName ]) {
-        NSLog(@"Altered the cropAnnotation");
-        //If this function is triggered by creation/modification of a cropAnnotation we need to bail out
-        //so we don't end up in an infinite trigger-loop
-        cropAnnotation = loopedAnnotation;
-
-        //But first, make sure we havent intruded on the last calculated shapesBoundingBox
-        if(cropAnnotation.customData) {
-          CGRect lastShapesBoundingBox = CGRectFromString(cropAnnotation.customData[@"shapesBoundingBox"]);
-          NSLog(NSStringFromCGRect(lastShapesBoundingBox));
-          cropAnnotation.boundingBox = CGRectUnion(cropAnnotation.boundingBox, lastShapesBoundingBox);
-        };
-
-        return YES;
-      }
+  //If only one annotation exists in the triggering annotation array and if this is our clipAnnotation, we need to bail out
+  BOOL isOnlyClipAnnotations = YES;
+  for (PSPDFAnnotation *loopedAnnotation in annotations) {
+    if ([loopedAnnotation.name isEqualToString:clipAnnotationName ]) {
+      //If this function is triggered by creation/modification of a clipAnnotation we need to bail out
+      //so we don't end up in an infinite trigger-loop
+      clipAnnotation = loopedAnnotation;
+    } else {
+      isOnlyClipAnnotations = NO;
+      break;
     }
+  }
+
+  //If only clipAnnotation and margins where found in the annotation array there is no point in continuing (we would get an infinite)
+  if(isOnlyClipAnnotations) {
+    [self adjustClipAnnotationMargins:clipAnnotation pageSize:pageInfo.size];
+    return YES;
   }
 
   //We won't go through the trouble of identifying impact on the boundingbox from to this very change
@@ -451,12 +505,10 @@ return YES;
   CGRect shapesBoundingBox = CGRectZero;
 
   for (PSPDFAnnotation *loopedAnnotation in allAnnotations) {
-      if ([loopedAnnotation.name isEqualToString:cropAnnotationName ]) {
-      //This is our cropAnnotation
-      cropAnnotation = loopedAnnotation;
-    } else {
+    if ([loopedAnnotation.name isEqualToString:clipAnnotationName ]) {
+      clipAnnotation = loopedAnnotation;
+    } else  {
       //This is all our annotations we want to calculate our shapesBoundingBox from
-
       //Higlight annotations has a rects-array with all selection rects. We need to use those rects instead of 
       //the annotation's boundingBox, since PSPDF adds a margin to boundingBox which we don't want
       if ([loopedAnnotation isKindOfClass:[PSPDFHighlightAnnotation class]]) {
@@ -469,33 +521,132 @@ return YES;
     }
   }
 
-  //If no selection exists, the selectionRect will be CGRectZero. The remaining cropAnnotation should be removed
-  // if(CGRectIsEmpty(shapesBoundingBox)) {
-  //   if(cropAnnotation) {
-  //     //TODO: remove existing annotation
-  //   }
-  //   return YES;
-  // }
+  // If no selection exists, the selectionRect will be CGRectZero. The remaining clipAnnotation should be removed
+  if(CGRectIsEmpty(shapesBoundingBox)) {
+    if(clipAnnotation) {
+      [document removeAnnotations:@[clipAnnotation] options:nil];
+      self.snippetCount -= 1;
 
-  CGRect minBoundingBox = CGRectMake(0, shapesBoundingBox.origin.y, pageInfo.size.width, shapesBoundingBox.size.height);
-  if(!cropAnnotation) {
-    cropAnnotation = [[PSPDFSquareAnnotation alloc] init];
-    cropAnnotation.pageIndex = pageIndex;
-    cropAnnotation.name = cropAnnotationName;
-    cropAnnotation.boundingBox = minBoundingBox;
-    cropAnnotation.borderStyle = PSPDFAnnotationBorderStyleDashed;
-    cropAnnotation.lineWidth = 1;
-    cropAnnotation.dashArray = @[@3,@3];
-
-  } else {
-    cropAnnotation.boundingBox = CGRectUnion(cropAnnotation.boundingBox, minBoundingBox);
+      //Report to JS that a box is removed so JS can decide if saveButton should be enabled
+      if(self.onClipAnnotationStateChanged) {
+        self.onClipAnnotationStateChanged(@{
+          @"snippetCount" : @(self.snippetCount)
+        });
+      }
+    }
+    return YES;
   }
 
-  //Store the last calculated shapesBoundingBox so we can test it if cropAnnotation is modified (i.e about 50 lines above)
-  NSDictionary *customData = @{@"shapesBoundingBox": NSStringFromCGRect(minBoundingBox)};
-  cropAnnotation.customData = customData;
+  CGRect minBoundingBox = CGRectMake(0, shapesBoundingBox.origin.y, pageInfo.size.width, shapesBoundingBox.size.height);
+  if(!clipAnnotation) {
+    clipAnnotation = [[PSPDFSquareAnnotation alloc] init];
+    clipAnnotation.pageIndex = pageIndex;
+    clipAnnotation.name = clipAnnotationName;
+    clipAnnotation.boundingBox = minBoundingBox;
+    clipAnnotation.borderStyle = PSPDFAnnotationBorderStyleDashed;
+    clipAnnotation.lineWidth = 1;
+    clipAnnotation.dashArray = @[@3,@3];
+    // clipAnnotation.overlay = YES;
+    [document addAnnotations:@[clipAnnotation] options:nil];
+    //Report to JS that a box is created so JS can decide if annotationButtons should be enabled
 
-  return [document addAnnotations:@[cropAnnotation] options:nil];
+    self.snippetCount += 1;
+
+    //Report to JS that a box is removed so JS can decide if saveButton should be enabled
+    if(self.onClipAnnotationStateChanged) {
+      self.onClipAnnotationStateChanged(@{
+        @"snippetCount" : @(self.snippetCount)
+      });
+    }
+  } else {
+    clipAnnotation.boundingBox = CGRectUnion(clipAnnotation.boundingBox, minBoundingBox);
+    [annotationManager updateAnnotations:@[clipAnnotation] animated:YES];
+  }
+
+  //Store the last calculated shapesBoundingBox so we can test it if clipAnnotation is modified (i.e about 50 lines above)
+  NSDictionary *customData = @{@"shapesBoundingBox": NSStringFromCGRect(clipAnnotation.boundingBox)};
+  clipAnnotation.customData = customData;
+
+  return YES;
+}
+
+
+//--------------------- getClipAnnotations -----------------------------
+- (NSDictionary *)getClipAnnotations {
+  PSPDFDocument *document = self.pdfController.document;
+  VALIDATE_DOCUMENT(document, nil);
+
+  NSArray<PSPDFAnnotation *> *allAnnotations = [[document allAnnotationsOfType:PSPDFAnnotationTypeAll].allValues valueForKeyPath:@"@unionOfArrays.self"];
+  NSMutableArray *clipRects = [NSMutableArray array];
+  NSMutableArray *allNonClipAnnotations = [NSMutableArray array];
+  NSString *words = @"";
+
+  for (PSPDFAnnotation *annotation in allAnnotations) {
+    if ([annotation.name isEqualToString:clipAnnotationName ]) {
+      NSDictionary *clipRect = @{
+        @"guid": annotation.uuid,
+        @"pageIndex": [NSNumber numberWithInteger:annotation.pageIndex],
+        @"x": [NSNumber numberWithFloat:annotation.boundingBox.origin.x],
+        @"y": [NSNumber numberWithFloat:annotation.boundingBox.origin.y],
+        @"width": [NSNumber numberWithFloat:annotation.boundingBox.size.width],
+        @"height": [NSNumber numberWithFloat:annotation.boundingBox.size.height],
+      };
+      [clipRects addObject:clipRect];
+    } else {
+      [allNonClipAnnotations addObject:annotation];
+
+      //For all highlight annotations we want to collect the marked up text, line by line
+      if([annotation isKindOfClass:[PSPDFHighlightAnnotation class]]) {
+        NSString *markedUpString = [(PSPDFHighlightAnnotation *)annotation markedUpString];
+        markedUpString = [markedUpString lowercaseString];
+
+        //Separate any previous words collctions with a space
+        if([words length] > 0) {
+          words = [words stringByAppendingString:@" "];
+        }
+
+        //Replace all tabs, cr, lf, dashes, commas and periods with single spaces
+        NSError *error = nil;
+        NSRegularExpression *regex1 = [NSRegularExpression 
+          regularExpressionWithPattern:@"\\r|\\n|\\t|-|–|\\.|\\,|(\\(.+\\))|\\d:\\d|\\d" 
+          options:NSRegularExpressionCaseInsensitive 
+          error:&error];
+
+        markedUpString = [regex1 
+          stringByReplacingMatchesInString:markedUpString 
+          options:0 
+          range:NSMakeRange(0, [markedUpString length]) 
+          withTemplate:@" "
+        ];
+
+        //Get rid of any dubble spaces generated by replacing for example " -"
+        NSRegularExpression *regex2 = [NSRegularExpression 
+          regularExpressionWithPattern:@"\\ {2,}" 
+          options:NSRegularExpressionCaseInsensitive 
+          error:&error];
+
+        markedUpString = [regex2 
+          stringByReplacingMatchesInString:markedUpString 
+          options:0 
+          range:NSMakeRange(0, [markedUpString length]) 
+          withTemplate:@" "
+        ];
+
+        words = [words stringByAppendingString:markedUpString];
+      }
+    }
+  }
+
+  NSArray <NSDictionary *> *nonClipAnnotationsJSON;
+  if([allNonClipAnnotations count] > 0) {
+    nonClipAnnotationsJSON = [RCTConvert instantJSONFromAnnotations:allNonClipAnnotations error:nil];
+  }             
+
+  return @{
+    @"annotations" : nonClipAnnotationsJSON,
+    @"words": words,
+    @"clipRects" : clipRects
+  };
 }
 
 
@@ -530,10 +681,12 @@ return YES;
     onPageView:(PSPDFPageView *)pageView 
 {
   
-  BOOL isCropAnnotation = NO;
+  BOOL isClipAnnotation = NO;
   for (PSPDFAnnotation *annotation in annotations) {
-    if ([annotation isKindOfClass:[PSPDFCropAnnotation class]]) {
-      isCropAnnotation = YES;
+    if ([annotation.name isEqualToString:clipAnnotationName ]
+    ) {
+      isClipAnnotation = YES;
+      break;
     }
   }
 
@@ -541,22 +694,38 @@ return YES;
     return [menuItems filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(PSPDFMenuItem *menuItem, NSDictionary *bindings) {
         NSLog(@"%@", menuItem.identifier);
 
-        return [menuItem.identifier isEqualToString:PSPDFAnnotationMenuRemove] && !isCropAnnotation;
+        return [menuItem.identifier isEqualToString:PSPDFAnnotationMenuRemove] && !isClipAnnotation;
     }]];
 }
 
 
-- (nullable UIView<PSPDFAnnotationPresenting> *)
-    pdfViewController:(nonnull PSPDFViewController *)pdfController
-    annotationView:(nullable UIView<PSPDFAnnotationPresenting> *)annotationView
-    forAnnotation:(nonnull PSPDFAnnotation *)annotation
-    onPageView:(nonnull PSPDFPageView *)pageView
-{
-  if([annotation isKindOfClass:[PSPDFCropLineAnnotation class]]) {
-    return annotationView;
-  } else {
-    return annotationView;
+//-------------- willShowAnnotationView ---------------------
+//HÄR
+- (void)
+  pdfViewController:(nonnull PSPDFViewController *)pdfController
+  willShowAnnotationView:(nonnull UIView<PSPDFAnnotationPresenting> *)annotationView
+  onPageView:(nonnull PSPDFPageView *)pageView {
+    NSLog(@"willShowAnnotationView....");
   }
+
+//----------------------------------------------------------------------------
+// - (nullable UIView<PSPDFAnnotationPresenting> *)
+//     pdfViewController:(nonnull PSPDFViewController *)pdfController
+//     annotationView:(nullable UIView<PSPDFAnnotationPresenting> *)annotationView
+//     forAnnotation:(nonnull PSPDFAnnotation *)annotation
+//     onPageView:(nonnull PSPDFPageView *)pageView
+// {
+  // if([annotation isKindOfClass:[PSPDFClipLineAnnotation class]]) {
+  //   return annotationView;
+  // } else {
+    // return annotationView;
+  // }
+// }
+
+//------ setIsAutomaticClipRect --------------------------------- property setter 
+- (void)setIsAutomaticClipRect:(bool)isAutomaticClipRect {
+  _isAutomaticClipRect = isAutomaticClipRect;
+  [self adjustClipAnnotationAtAllPages];
 }
 
 //=====================================================================================================
@@ -617,6 +786,32 @@ return YES;
 
 - (void)pdfViewController:(PSPDFViewController *)pdfController didChangeDocument:(nullable PSPDFDocument *)document {
   VALIDATE_DOCUMENT(document)
+
+  PSPDFRenderOptions *options = [[PSPDFRenderOptions alloc] init];
+  options.drawBlock =^void(CGContextRef _Nonnull context, PSPDFPageIndex pageIndex, CGRect pageRect, PSPDFRenderOptions *_Nonnull options) {
+      NSLog(@"...................executing drawBlock");
+      if(self.documentMargins && self.isAutomaticClipRect) {
+        CGFloat topMargin = self.documentMargins ? [self.documentMargins[@"top"] floatValue] : 0.0;
+        CGFloat bottomMargin = self.documentMargins ? [self.documentMargins[@"bottom"] floatValue] : 0.0;
+        CGFloat leftMargin = self.documentMargins ? [self.documentMargins[@"left"] floatValue] - 1 : 0.0;
+        CGFloat rightMargin = self.documentMargins ? [self.documentMargins[@"right"] floatValue] - 1 : 0.0;
+
+        CGRect leftRect = CGRectMake(0, 0, leftMargin, pageRect.size.height);
+        CGRect rightRect = CGRectMake(pageRect.size.width - rightMargin, 0, leftMargin, pageRect.size.height);
+        CGRect topRect = CGRectMake(leftMargin, pageRect.size.height - topMargin, pageRect.size.width - leftMargin - rightMargin, topMargin);
+        CGRect bottomRect = CGRectMake(leftMargin, 0, pageRect.size.width - leftMargin - rightMargin, bottomMargin);
+        CGContextSetRGBFillColor(context, 0.7, 0.7, 0.7, 0.1);
+  //      CGContextSetRGBStrokeColor(context, 1.0, 0.0, 0.0, 1.0);
+        CGContextFillRect(context, leftRect);  
+        CGContextFillRect(context, rightRect);  
+        CGContextFillRect(context, topRect);  
+        CGContextFillRect(context, bottomRect);  
+      }
+  };
+
+  [document setRenderOptions:options type: PSPDFRenderTypeAll];
+
+
 }
 
 #pragma mark - PSPDFFlexibleToolbarContainerDelegate
@@ -829,7 +1024,7 @@ return YES;
   }
 
   //------PlanTrail----------------------
-  [self updateCropAnnotation2:annotations];
+  [self updateClipAnnotation:annotations];
 }
 
 #pragma mark - Customize the Toolbar

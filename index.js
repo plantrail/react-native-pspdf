@@ -43,6 +43,7 @@ class PSPDFKitView extends React.Component {
           onDataReturned={this._onDataReturned}
           //PlanTrail
           onAnnotationManagerStateChanged={this._onAnnotationManagerStateChanged}
+          onClipAnnotationStateChanged={this._onClipAnnotationStateChanged}
         />
       );
     } else {
@@ -103,24 +104,22 @@ class PSPDFKitView extends React.Component {
     this._requestMap.delete(requestId);
   };
 
-  /*-------------------------------------------------------------------------
-   * PlanTrail
-   * Create a png file from cropped pdf page including annotations
-   */
-  extractSnippet = function({fileGuid, pageIndex, clipRect}) {
-    if (Platform.OS === 'android') {
-      throw new Error(
-        'Android not supported for this PlanTrail specific function, (extractSnippet'
-      );
-    } else if (Platform.OS === 'ios') {
-      return NativeModules.PSPDFKitViewManager.extractSnippet(
-        fileGuid,
-        pageIndex,
-        clipRect,
-        findNodeHandle(this.refs.pdfView)
-      );
-    }
-  };
+  // /*-------------------------------------------------------------------------
+  //  * PlanTrail
+  //  * Create a png file from cropped pdf page including annotations
+  //  */
+  //  extractSnippet = function ({fileGuid, pageIndex, clipRect}) {
+  //   if (Platform.OS === "android") {
+  //     throw new Error('Android not supported for this PlanTrail specific function, (extractSnippet');
+  //   } else if (Platform.OS === "ios") {
+  //     return NativeModules.PSPDFKitViewManager.extractSnippet(
+  //       fileGuid,
+  //       pageIndex,
+  //       clipRect,
+  //       findNodeHandle(this.refs.pdfView)
+  //     );
+  //   }
+  // };
 
   _onAnnotationManagerStateChanged = event => {
     if (this.props.onAnnotationManagerStateChanged) {
@@ -128,31 +127,43 @@ class PSPDFKitView extends React.Component {
     }
   };
 
-  /* --------------
-   * PlanTrail
-   * Create a jpg in each size (original, medium, thumbnail) from a page in a pdf
-   */
-  extractBlueprint = function({fileGuid, clipRect, pageIndex, maxSize}) {
-    if (Platform.OS === 'android') {
-      throw new Error(
-        'Android not supported for this PlanTrail specific function, (extractSnippet'
-      );
-    } else if (Platform.OS === 'ios') {
-      return NativeModules.PSPDFKitViewManager.extractBlueprint(
-        fileGuid,
-        pageIndex,
-        clipRect,
-        maxSize,
-        findNodeHandle(this.refs.pdfView)
-      );
+  _onClipAnnotationStateChanged = event => {
+    if (this.props.onClipAnnotationStateChanged) {
+      this.props.onClipAnnotationStateChanged(event.nativeEvent);
     }
   };
 
-  extractImage = function({fileGuid, clipRect, pageIndex, maxSize, resolution, fileType}) {
+  // /* --------------
+  //  * PlanTrail
+  //  * Create a jpg in each size (original, medium, thumbnail) from a page in a pdf
+  //  */
+  //  extractBlueprint = function ({fileGuid, clipRect, pageIndex, maxSize}) {
+  //   if (Platform.OS === "android") {
+  //     throw new Error('Android not supported for this PlanTrail specific function, (extractSnippet');
+  //   } else if (Platform.OS === "ios") {
+  //     return NativeModules.PSPDFKitViewManager.extractBlueprint(
+  //       fileGuid,
+  //       pageIndex,
+  //       clipRect,
+  //       maxSize,
+  //       findNodeHandle(this.refs.pdfView)
+  //     );
+  //   }
+  // };
+
+  extractImage = function({
+    fileGuid,
+    pdfClipRect,
+    pageIndex,
+    maxSize,
+    resolution,
+    fileType,
+    includeArrows,
+    includeInk,
+    includeHighlights,
+  }) {
     if (Platform.OS === 'android') {
-      throw new Error(
-        'Android not supported for this PlanTrail specific function, (extractSnippet'
-      );
+      throw new Error('Android not supported for this PlanTrail specific function, (extractImage');
     } else if (Platform.OS === 'ios') {
       // if(!maxSize) {
       //   throw new Error('extractImage::maxSize must be specified')
@@ -160,29 +171,30 @@ class PSPDFKitView extends React.Component {
       return NativeModules.PSPDFKitViewManager.extractImage(
         fileGuid,
         pageIndex,
-        clipRect,
+        pdfClipRect,
         maxSize,
         resolution,
         fileType,
+        includeArrows,
+        includeInk,
+        includeHighlights,
         findNodeHandle(this.refs.pdfView)
       );
     }
   };
 
-  updateCropAnnotation = function({annotationName, pageIndex, selectionRect}) {
-    if (Platform.OS === 'android') {
-      throw new Error(
-        'Android not supported for this PlanTrail specific function, (extractSnippet'
-      );
-    } else if (Platform.OS === 'ios') {
-      return NativeModules.PSPDFKitViewManager.updateCropAnnotation(
-        annotationName,
-        pageIndex,
-        selectionRect,
-        findNodeHandle(this.refs.pdfView)
-      );
-    }
-  };
+  // updateCropAnnotation = function({annotationName, pageIndex, selectionRect}) {
+  //   if (Platform.OS === "android") {
+  //     throw new Error('Android not supported for this PlanTrail specific function, (extractSnippet');
+  //   } else if (Platform.OS === "ios") {
+  //     return NativeModules.PSPDFKitViewManager.updateCropAnnotation(
+  //       annotationName,
+  //       pageIndex,
+  //       selectionRect,
+  //       findNodeHandle(this.refs.pdfView)
+  //     );
+  //   }
+  // }
 
   /**-------------------------------------------------------------------------
    * PlanTrail
@@ -190,9 +202,7 @@ class PSPDFKitView extends React.Component {
    */
   getPageSize = function(pageIndex) {
     if (Platform.OS === 'android') {
-      throw new Error(
-        'Android not supported for this PlanTrail specific function, (extractSnippet'
-      );
+      throw new Error('Android not supported for this PlanTrail specific function, (getPageSize');
     } else if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.getPageSize(
         pageIndex,
@@ -205,7 +215,7 @@ class PSPDFKitView extends React.Component {
   endAnnotationState = function() {
     if (Platform.OS === 'android') {
       throw new Error(
-        'Android not supported for this PlanTrail specific function, (extractSnippet'
+        'Android not supported for this PlanTrail specific function, (endAnnotationState'
       );
     } else if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.endAnnotationState(
@@ -217,7 +227,7 @@ class PSPDFKitView extends React.Component {
   startHighlightAnnotationState = function() {
     if (Platform.OS === 'android') {
       throw new Error(
-        'Android not supported for this PlanTrail specific function, (extractSnippet'
+        'Android not supported for this PlanTrail specific function, (startHighlightAnnotationState'
       );
     } else if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.startHighlightAnnotationState(
@@ -229,7 +239,7 @@ class PSPDFKitView extends React.Component {
   startArrowAnnotationState = function() {
     if (Platform.OS === 'android') {
       throw new Error(
-        'Android not supported for this PlanTrail specific function, (extractSnippet'
+        'Android not supported for this PlanTrail specific function, (startArrowAnnotationState'
       );
     } else if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.startArrowAnnotationState(
@@ -241,7 +251,7 @@ class PSPDFKitView extends React.Component {
   startInkAnnotationState = function() {
     if (Platform.OS === 'android') {
       throw new Error(
-        'Android not supported for this PlanTrail specific function, (extractSnippet'
+        'Android not supported for this PlanTrail specific function, (startInkAnnotationState'
       );
     } else if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.startInkAnnotationState(
@@ -253,7 +263,7 @@ class PSPDFKitView extends React.Component {
   hideNavigationToolbar = function() {
     if (Platform.OS === 'android') {
       throw new Error(
-        'Android not supported for this PlanTrail specific function, (extractSnippet'
+        'Android not supported for this PlanTrail specific function, (hideNavigationToolbar'
       );
     } else if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.hideNavigationToolbar(
@@ -264,9 +274,7 @@ class PSPDFKitView extends React.Component {
 
   showOutline = function() {
     if (Platform.OS === 'android') {
-      throw new Error(
-        'Android not supported for this PlanTrail specific function, (extractSnippet'
-      );
+      throw new Error('Android not supported for this PlanTrail specific function, (showOutline');
     } else if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.showOutline(findNodeHandle(this.refs.pdfView));
     }
@@ -275,10 +283,22 @@ class PSPDFKitView extends React.Component {
   searchForString = function() {
     if (Platform.OS === 'android') {
       throw new Error(
-        'Android not supported for this PlanTrail specific function, (extractSnippet'
+        'Android not supported for this PlanTrail specific function, (searchForString'
       );
     } else if (Platform.OS === 'ios') {
       return NativeModules.PSPDFKitViewManager.searchForString(findNodeHandle(this.refs.pdfView));
+    }
+  };
+
+  getClipAnnotations = function() {
+    if (Platform.OS === 'android') {
+      throw new Error(
+        'Android not supported for this PlanTrail specific function, (getClipAnnotations)'
+      );
+    } else if (Platform.OS === 'ios') {
+      return NativeModules.PSPDFKitViewManager.getClipAnnotations(
+        findNodeHandle(this.refs.pdfView)
+      );
     }
   };
 
