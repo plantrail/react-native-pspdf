@@ -584,7 +584,7 @@ NSString *clipAnnotationName = @"PLANTRAIL_CLIP_ANNOTATION";
   for (PSPDFAnnotation *annotation in allAnnotations) {
     if ([annotation.name isEqualToString:clipAnnotationName ]) {
       NSDictionary *clipRect = @{
-        @"guid": annotation.uuid,
+        @"guid": [annotation.uuid lowercaseString],
         @"pageIndex": [NSNumber numberWithInteger:annotation.pageIndex],
         @"x": [NSNumber numberWithFloat:annotation.boundingBox.origin.x],
         @"y": [NSNumber numberWithFloat:annotation.boundingBox.origin.y],
