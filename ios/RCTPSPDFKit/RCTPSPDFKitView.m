@@ -299,7 +299,7 @@ NSString *clipAnnotationName = @"PLANTRAIL_CLIP_ANNOTATION";
       reject(@"Error", @"extractImage::PSPDFREnderTask failed", renderError);
     }
 
-    UIImage *imageThumbnail = [self resizeImage:imageOriginal to: 120.0];
+    UIImage *imageThumbnail = [self resizeImage:imageOriginal to: 180.0];
     NSString *fileNameThumbnail = [fileGuid stringByAppendingString:@"_thumbnail"];
     NSString *fileNameOriginal = [fileGuid stringByAppendingString:@"_original"];
 
