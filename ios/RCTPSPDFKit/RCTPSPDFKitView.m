@@ -285,6 +285,7 @@ NSString *clipAnnotationName = @"PLANTRAIL_CLIP_ANNOTATION";
   request.pdfRect = pdfClipRect;
   request.annotations = annotations;
   request.cachePolicy = PSPDFRenderRequestCachePolicyReloadIgnoringCacheData;
+  request.options.backgroundFill = nil;
 
   // Create a render task using the `PSPDFMutableRenderRequest`.
   PSPDFRenderTask *task = [[PSPDFRenderTask alloc] initWithRequest:request error:&error];
