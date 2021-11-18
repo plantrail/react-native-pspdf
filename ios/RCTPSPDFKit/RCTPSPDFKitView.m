@@ -94,6 +94,8 @@ NSString *clipAnnotationName = @"PLANTRAIL_CLIP_ANNOTATION";
      [topControllerView.leadingAnchor constraintEqualToAnchor:self.leadingAnchor],
      [topControllerView.trailingAnchor constraintEqualToAnchor:self.trailingAnchor],
    ]];
+
+  self.pdfController.pageIndex = self.pageIndex;
 }
 
 - (void)destroyViewControllerRelationship {

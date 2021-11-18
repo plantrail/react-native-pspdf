@@ -231,6 +231,9 @@ RCT_MULTI_ENUM_CONVERTER(PSPDFSettingsOptions,
                             @"pageTransition" : @(PSPDFSettingsOptionPageTransition),
                             @"appearance" : @(PSPDFSettingsOptionAppearance),
                             @"brightness" : @(PSPDFSettingsOptionBrightness),
+                            @"pageMode" : @(PSPDFSettingsOptionPageMode),
+                            @"spreadFitting" : @(PSPDFSettingsOptionSpreadFitting),
+                            @"default" : @(PSPDFSettingsOptionDefault),
                             @"all" : @(PSPDFSettingsOptionAll)}),
                          PSPDFSettingsOptionAll,
                          unsignedIntegerValue)
@@ -338,7 +341,6 @@ RCT_MULTI_ENUM_CONVERTER(PSPDFDocumentSharingPagesOptions,
   SET(createAnnotationMenuEnabled, BOOL)
   SET(naturalDrawingAnnotationEnabled, BOOL)
   SET(drawCreateMode, PSPDFDrawCreateMode)
-  SET(showAnnotationMenuAfterCreation, BOOL)
   SET(shouldAskForAnnotationUsername, BOOL)
   SET(annotationEntersEditModeAfterSecondTapEnabled, BOOL)
   SET(autosaveEnabled, BOOL)
